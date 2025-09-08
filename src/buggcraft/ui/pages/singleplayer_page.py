@@ -2,16 +2,17 @@
 
 # src/buggcraft/ui/pages/singleplayer_page.py
 from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from ..widgets.buttons import QMStartButton
 from .base_page import BasePage
 
 class SinglePlayerPage(BasePage):
     """单机游戏页面"""
-    
-    def __init__(self, home_path, scale_ratio=1.0, parent=None):
+    started_changed = Signal(str)  # 设置改变信号，参数为设置键和值
+
+    def __init__(self, home_path, minecraft_version, scale_ratio=1.0, parent=None):
         super().__init__(home_path, scale_ratio, parent)
-        self.minecraft_version = ""  # 将在外部设置
+        self.minecraft_version = minecraft_version  # 将在外部设置
         self.launch_btn = None
         self.init_ui()
         
@@ -41,6 +42,7 @@ class SinglePlayerPage(BasePage):
         # 创建启动按钮
         self.launch_btn = QMStartButton(scale_ratio=self.scale_ratio)
         self.launch_btn.set_texts('启动游戏', self.minecraft_version)
+        self.launch_btn.clicked.connect(lambda: self.started_changed.emit(self.minecraft_version))
         overlay_layout.addWidget(self.launch_btn, 0, Qt.AlignCenter)
         
         content_layout.addWidget(overlay)

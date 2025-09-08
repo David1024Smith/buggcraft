@@ -31,7 +31,7 @@ class MinecraftLauncher(QMainWindow):
         self.HOME_PATH = HOME_PATH
         self.launcher = None  # 游戏线程
         # 原始设计尺寸（例如1920x1080）  875  (875 - 48 + 2) * self.scale_ratio
-        self.scale_ratio = scale_component(QSize(1280, 832), QSize(1280, 832))
+        # self.scale_ratio = scale_component(QSize(1280, 832), QSize(1280, 832))
         self.scale_ratio = scale_component(QSize(1280, 832), QSize(1280-1280/4, 832-832/4))
 
         # 用户信息
@@ -57,7 +57,7 @@ class MinecraftLauncher(QMainWindow):
         # 创建并启动游戏线程
         # 初始化启动器
         self.minecraft_directory = os.path.join(self.HOME_PATH, ".minecraft")
-        self.launcher = MinecraftLibLauncher()
+        self.launcher = MinecraftLibLauncher(home_path=self.HOME_PATH)
         self.launcher.signals.output.connect(self.minecraft_handle_output)
         self.launcher.signals.started.connect(self.minecraft_handle_started)
         self.launcher.signals.stopped.connect(self.minecraft_handle_stopped)
@@ -88,9 +88,9 @@ class MinecraftLauncher(QMainWindow):
     def minecraft_handle_started(self):
         """游戏启动处理"""
         def handle_status():
-            self.launch_btn.set_texts(f"停止游戏", self.minecraft_version)
-            self.launch_btn.set_stop_style()
-            self.launch_btn.setEnabled(True)
+            self.startedplayer_page.launch_btn.set_texts(f"停止游戏", self.minecraft_version)
+            self.startedplayer_page.launch_btn.set_stop_style()
+            self.startedplayer_page.launch_btn.setEnabled(True)
             self.current_client = True  # 游戏启动状态：已启动
 
         print('minecraft_handle_started', '游戏已启动')
@@ -102,9 +102,9 @@ class MinecraftLauncher(QMainWindow):
             if code == 0:
                 self.user_panel.login_status.setText("<font color='#4CAF50'>游戏已正常退出</font>")
             
-            self.launch_btn.set_texts("启动游戏", self.minecraft_version)
-            self.launch_btn.set_start_style()
-            self.launch_btn.setEnabled(True)
+            self.startedplayer_page.launch_btn.set_texts("启动游戏", self.minecraft_version)
+            self.startedplayer_page.launch_btn.set_start_style()
+            self.startedplayer_page.launch_btn.setEnabled(True)
             self.current_client = False  # 游戏启动状态：未启动
 
             # 5秒后恢复状态
@@ -168,9 +168,9 @@ class MinecraftLauncher(QMainWindow):
     def create_pages(self):
         """创建所有页面"""
         # 单机页面
-        self.singleplayer_page = SinglePlayerPage(self.HOME_PATH, self.scale_ratio)
-        self.singleplayer_page.connect_launch_handler(self.launch_game)
-        self.content_stack.addWidget(self.singleplayer_page)
+        self.startedplayer_page = SinglePlayerPage(self.HOME_PATH, self.minecraft_version, self.scale_ratio)
+        self.startedplayer_page.started_changed.connect(self.launch_game)
+        self.content_stack.addWidget(self.startedplayer_page)
         
         # 多人游戏页面
         self.multiplayer_page = MultiplayerPage(self.HOME_PATH, self.scale_ratio)
@@ -213,7 +213,7 @@ class MinecraftLauncher(QMainWindow):
         # 选择服务器后的进入操作
         self.current_server_download = "未下载"
         self.current_server_download_progress = 0
-        self.launch_btn.set_texts("下载游戏", self.minecraft_version)
+        # self.startedplayer_page.launch_btn.set_texts("下载游戏", self.minecraft_version)
         self.title_bar.tabs.setCurrentIndex(0)  # 切换到启动
         self.launch_game()
 
@@ -228,20 +228,20 @@ class MinecraftLauncher(QMainWindow):
 
         self.current_server_download = "已下载"
         if not self.minecraft_username:
-            self.launch_btn.set_texts(f"请先设置角色", self.minecraft_version)
+            # self.startedplayer_page.launch_btn.set_texts(f"请先设置角色", self.minecraft_version)
             self.user_panel.login_status.setText("<font color='#F44800'>请先设置游戏角色</font>")
 
-            if self.current_server_download == "未下载":
-                QTimer.singleShot(5000, lambda: self.launch_btn.set_texts("下载游戏", self.minecraft_version)) # 切换到联机大厅
-            else:
-                QTimer.singleShot(5000, lambda: self.launch_btn.set_texts(f"启动游戏", self.minecraft_version)) # 切换到联机大厅
+            # if self.current_server_download == "未下载":
+            #     QTimer.singleShot(5000, lambda: self.startedplayer_page.launch_btn.set_texts("下载游戏", self.minecraft_version)) # 切换到联机大厅
+            # else:
+            #     QTimer.singleShot(5000, lambda: self.startedplayer_page.launch_btn.set_texts(f"启动游戏", self.minecraft_version)) # 切换到联机大厅
             return
         
         if self.current_server_download == "未下载":
             # 开始下载过程
             self.current_server_download_progress = 0
-            self.launch_btn.setEnabled(False)
-            self.launch_btn.set_texts(f"[{self.current_server_download_progress}%] 下载中...", self.minecraft_version)
+            # self.startedplayer_page.launch_btn.setEnabled(False)
+            # self.startedplayer_page.launch_btn.set_texts(f"[{self.current_server_download_progress}%] 下载中...", self.minecraft_version)
             # 使用 QTimer 实现非阻塞下载模拟
             self.download_timer = QTimer()
             self.download_timer.timeout.connect(self.update_download_progress)
@@ -250,8 +250,8 @@ class MinecraftLauncher(QMainWindow):
         elif self.current_server_download == "已下载":
             if not self.current_client:
                 # 游戏未启动 - 启动过程
-                self.launch_btn.setEnabled(False)
-                self.launch_btn.set_texts(f"启动中...", self.minecraft_version)
+                self.startedplayer_page.launch_btn.setEnabled(False)
+                self.startedplayer_page.launch_btn.set_texts(f"启动中...", self.minecraft_version)
                 self.launcher.set_language('简体中文')
                 self.launcher.set_options(
                     uuid=self.minecraft_uuid,
@@ -267,21 +267,21 @@ class MinecraftLauncher(QMainWindow):
                 self.launcher.start()
             else:
                 # 游戏已启动 - 停止过程
-                self.launch_btn.set_texts(f"正在停止游戏...", self.minecraft_version)
+                self.startedplayer_page.launch_btn.set_texts(f"正在停止游戏...", self.minecraft_version)
                 self.launcher.stop()
     
     def update_download_progress(self):
         """更新下载进度"""
         self.current_server_download_progress += 1
-        self.launch_btn.set_texts(f"[{self.current_server_download_progress}%] 下载中...", self.minecraft_version)
+        self.startedplayer_page.launch_btn.set_texts(f"[{self.current_server_download_progress}%] 下载中...", self.minecraft_version)
         
         if self.current_server_download_progress >= 100:
             # 下载完成
             self.download_timer.stop()
-            self.launch_btn.set_texts("启动游戏", self.minecraft_version)
-            self.launch_btn.set_start_style()
+            self.startedplayer_page.launch_btn.set_texts("启动游戏", self.minecraft_version)
+            self.startedplayer_page.launch_btn.set_start_style()
             self.current_server_download = "已下载"
-            self.launch_btn.setEnabled(True)
+            self.startedplayer_page.launch_btn.setEnabled(True)
             # 下载完成后启动游戏
             self.launch_game()
 
