@@ -3,11 +3,11 @@
 [![AGPLv3 License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Community License](https://img.shields.io/badge/License-Community%20Initiative-ff69b4.svg)](./COMMUNITY_LICENSE.md)
 ![Static Badge](https://img.shields.io/badge/platforms-Windows%7CMacOS%7CLinux-red)
-[![GitHub last commit](https://img.shields.io/github/last-commit/your-username/your-repo)](https://github.com/your-username/your-repo/commits/main)
-[![GitHub issues](https://img.shields.io/github/issues/your-username/your-repo)](https://github.com/your-username/your-repo/issues)
-[![GitHub Stars](https://img.shields.io/github/stars/your-username/your-repo?style=social)](https://github.com/your-username/your-repo)
+[![GitHub last commit](https://img.shields.io/github/last-commit/vdjango/buggcreaft)](https://github.com/vdjango/buggcreaft/commits/main)
+[![GitHub issues](https://img.shields.io/github/issues/vdjango/buggcreaft)](https://github.com/vdjango/buggcreaft/issues)
+[![GitHub Stars](https://img.shields.io/github/stars/vdjango/buggcreaft?style=social)](https://github.com/vdjango/buggcreaft)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![GitHub release](https://img.shields.io/github/v/release/your-username/your-repo)](https://github.com/your-username/your-repo/releases)
+[![GitHub release](https://img.shields.io/github/v/release/vdjango/buggcreaft)](https://github.com/vdjango/buggcreaft/releases)
 
 **Buggcreaft Launcher 启动器，我们的目标是提供一个全新的选择**。​​ 我们希望在强大功能的基础上，**在​​设计美学、联机体验、开源理念​​上做出特色**，为那些看重这些特质的玩家和贡献者提供一个 “由热爱驱动” 的家园。我们相信，游戏体验应从启动那一刻就充满愉悦与期待，因此决心构建一款**​​免费、开放、以用户体验 为核心​​的 Minecraft Launcher 启动器**
 
@@ -115,8 +115,8 @@
 1. ⏱️ 克隆项目​​:
 
 ```bash
-git clone https://github.com/your-username/your-launcher.git
-cd your-launcher
+git clone get@github.com:vdjango/buggcreaft.git
+cd buggcreaft
 ```
 
 2. ​🧑‍💻 ​安装依赖​​:
