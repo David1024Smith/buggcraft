@@ -200,7 +200,7 @@ class SettingsPage(BasePage):
         self.auto_search_button.clicked.connect(self.auto_search_java)
         button_layout.addWidget(self.auto_search_button)
 
-        # 手动导入按钮
+        # 手动导入按钮  TODO: 待实现
         manual_import_button = QPushButton("手动导入")
         manual_import_button.setFixedHeight(25)  # 固定高度
         manual_import_button.setFixedWidth(80)
@@ -217,7 +217,7 @@ class SettingsPage(BasePage):
             }
         """)
         # manual_import_button.clicked.connect(self.manual_import_java)
-        button_layout.addWidget(manual_import_button)
+        # button_layout.addWidget(manual_import_button)
         button_layout.addStretch()
         # 添加按钮行到表单布局（空标签占位第一列）
         launcher_visibility_layout.addRow("", button_container)  # 空标签使按钮对齐下拉框
