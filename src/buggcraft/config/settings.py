@@ -5,6 +5,8 @@ import os
 from typing import Any, Dict, Optional
 from pathlib import Path
 
+from config.javafinder import JavaPathFinder
+
 class SettingsManager:
     """
     设置管理类，用于统一处理应用的配置保存和加载
@@ -21,7 +23,7 @@ class SettingsManager:
         self.config_dir = os.path.join(str(Path.home()), '.buggcraft')
         if config_path is not None:
             self.config_dir = os.path.join(config_path)
-        
+
         self.config_file = os.path.join(self.config_dir, 'settings.json')
         
         # 确保配置目录存在
@@ -39,7 +41,7 @@ class SettingsManager:
             },
             "java": {
                 "version": "自动选择",
-                "path": ""
+                "path": None
             },
             "memory": {
                 "allocation": 2048,
@@ -198,7 +200,8 @@ class SettingsManager:
                 result[key] = value
                 
         return result
-    
+
+
     @property
     def all_settings(self) -> Dict[str, Any]:
         """获取所有当前配置的副本"""

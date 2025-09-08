@@ -13,6 +13,8 @@ from PySide6.QtCore import Qt, Signal
 from .base_page import BasePage
 from utils.helpers import MemorySliderManager
 from config.settings import get_settings_manager
+from config.javafinder import JavaPathFinder
+
 
 class SettingsPage(BasePage):
     """设置页面 - 继承BasePage"""
@@ -22,7 +24,7 @@ class SettingsPage(BasePage):
     
     def __init__(self, home_path, scale_ratio=1.0, parent=None):
         super().__init__(home_path, scale_ratio, parent)
-        self.settings_manager = get_settings_manager()  # 获取配置管理器
+        self.settings_manager = get_settings_manager(home_path)  # 获取配置管理器
         self.init_ui()
         # 加载设置
         self.load_settings_to_ui()
@@ -180,10 +182,10 @@ class SettingsPage(BasePage):
         button_layout.setSpacing(8)  # 按钮间距
 
         # 自动搜索按钮
-        auto_search_button = QPushButton("自动搜索")
-        auto_search_button.setFixedHeight(25)  # 固定高度
-        auto_search_button.setFixedWidth(80)
-        auto_search_button.setStyleSheet("""
+        self.auto_search_button = QPushButton("自动搜索")
+        self.auto_search_button.setFixedHeight(25)  # 固定高度
+        self.auto_search_button.setFixedWidth(80)
+        self.auto_search_button.setStyleSheet("""
             QPushButton {
                 background-color: #4CAF50;
                 color: white;
@@ -195,8 +197,8 @@ class SettingsPage(BasePage):
                 background-color: #45a049;
             }
         """)
-        # auto_search_button.clicked.connect(self.auto_search_java)
-        button_layout.addWidget(auto_search_button)
+        self.auto_search_button.clicked.connect(self.auto_search_java)
+        button_layout.addWidget(self.auto_search_button)
 
         # 手动导入按钮
         manual_import_button = QPushButton("手动导入")
@@ -542,6 +544,96 @@ class SettingsPage(BasePage):
         """显示其他设置"""
         self.settings_stack.setCurrentIndex(2)
 
+        
+    def auto_search_java(self, java_path=None):
+        """自动搜索Java安装"""
+        # 显示搜索中状态
+        self.auto_search_button.setEnabled(False)
+        self.auto_search_button.setText("搜索中...")
+        
+        # 在后台线程中执行搜索（避免阻塞UI）
+        from PySide6.QtCore import QThread, Signal, QObject
+        
+        class JavaSearchWorker(QObject):
+            finished = Signal(list)
+            error = Signal(str)
+            
+            def run(self):
+                try:
+                    finder = JavaPathFinder()
+                    java_installations = finder.find_all_java_installations()
+                    self.finished.emit(java_installations)
+                except Exception as e:
+                    self.error.emit(str(e))
+        
+        # 创建和工作线程
+        self.search_thread = QThread()
+        self.worker = JavaSearchWorker()
+        self.worker.moveToThread(self.search_thread)
+        
+        # 连接信号和槽
+        self.search_thread.started.connect(self.worker.run)
+        self.worker.finished.connect(lambda t: self.on_java_search_finished(t, java_path))
+        self.worker.finished.connect(self.search_thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.worker.error.connect(self.on_java_search_error)
+        self.search_thread.finished.connect(self.search_thread.deleteLater)
+        
+        # 启动线程
+        self.search_thread.start()
+
+    def on_java_search_finished(self, java_installations, find_java):
+        """Java搜索完成处理"""
+        self.auto_search_button.setEnabled(True)
+        self.auto_search_button.setText("自动搜索")
+        
+        if not java_installations:
+            self.show_message("未找到Java安装", "请手动安装Java或指定Java路径")
+            return
+        
+        # 更新Java选择下拉框
+        current_count = self.game_java_combo.count()
+        for i in range(current_count - 1, 0, -1): # 从后往前删，避免索引变化
+            self.game_java_combo.removeItem(i)
+
+        # 添加新的Java路径选项，并将路径设置为UserData
+        for java_path, version in java_installations: # 假设这是你的搜索结果
+            print(f'  -> {version} - {java_path}')
+            self.game_java_combo.addItem(java_path, java_path) # 添加Item并设置UserData  version, 
+
+        # 自动选择推荐的Java
+        finder = JavaPathFinder()
+        best_java = finder.recommend_best_java(java_installations)
+        if find_java:
+            best_java = finder.recommend_best_java([(find_java, find_java)])
+        
+        found_index = -1
+        for i in range(1, self.game_java_combo.count()): # 从索引1开始，跳过提示项
+            if self.game_java_combo.itemData(i) == best_java:
+                found_index = i
+                break
+
+        if found_index != -1:
+            self.game_java_combo.setCurrentIndex(found_index)
+        else:
+            print("未找到对应的Java路径，可能需更新选项列表")
+            # 可选：设置为“自动选择”或第一个可用选项
+            self.game_java_combo.setCurrentIndex(0)
+
+        self.show_message("搜索完成", f"找到 {len(java_installations)} 个Java安装")
+
+    def on_java_search_error(self, error_message):
+        """Java搜索错误处理"""
+        self.auto_search_button.setEnabled(True)
+        self.auto_search_button.setText("自动搜索")
+        self.show_message("搜索出错", f"错误信息: {error_message}")
+
+    def show_message(self, title, message):
+        """显示消息（实现取决于你的UI框架）"""
+        # 这里可以使用QMessageBox或你的自定义弹窗
+        print(f"{title}: {message}")
+        
+
     def on_setting_changed(self, key: str, value: Any):
         """处理设置改变，更新配置管理器并保存"""
         # 更新配置管理器
@@ -577,10 +669,11 @@ class SettingsPage(BasePage):
             size = self.settings_manager.get_setting("launcher.window_size", "默认")
             self.window_size_combo.setCurrentText(size)
 
-            # 游戏Java
+            ##############################
+            # 游戏Java，自动选择Java运行时 #
             java_path = self.settings_manager.get_setting("java.path", "自动选择合适的Java")
-            self.game_java_combo.setCurrentText(java_path)
-            
+            self.auto_search_java(java_path)
+
             # 内存分配 y
             memory = self.settings_manager.get_setting("memory.allocation", 2048)
             self.memory_slider.setValue(memory)

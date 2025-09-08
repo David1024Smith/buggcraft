@@ -7,11 +7,14 @@ import signal
 import time
 import psutil
 import minecraft_launcher_lib
+from typing import List
 from urllib.parse import urlparse, parse_qs, quote
 from base64 import urlsafe_b64encode
 from hashlib import sha256
 from secrets import token_urlsafe
 from PySide6.QtCore import Signal, QObject, QThread
+
+from config.settings import get_settings_manager
 
 
 class MinecraftSignals(QObject):
@@ -84,10 +87,11 @@ class StartGameThread(QThread):
 class MinecraftLibLauncher(QObject):
     """Minecraft 启动器核心类"""
     
-    def __init__(self, parent=None):
+    def __init__(self, home_path, parent=None):
         super().__init__(parent)
         self.signals = MinecraftSignals()
-        
+        self.settings_manager = get_settings_manager(home_path)  # 获取配置管理器
+
         self.process = None
         self.running = False
         self.stopping = False
@@ -151,16 +155,31 @@ class MinecraftLibLauncher(QObject):
             # 确保游戏语言设置文件正确配置
             self._ensure_language_setting()
 
+            java_path = self.settings_manager.get_setting("java.path", None)
+            memory = self.settings_manager.get_setting("memory.allocation", "自动选择合适的Java")
+            print(f'[JavaRunTime] -> {java_path}')
+            if not java_path:
+                print('请安装Java环境')  # TODO
+                return
+
             # 准备启动选项
             options = {
+                "executablePath": java_path,
                 "username": self.username,
                 "server": self.server,
                 "gameDirectory": self.minecraft_directory,
                 "version": self.version,
                 "jvmArguments": [
-                    f"-Xmx{self.memory}M", 
-                    f"-Xms{self.memory}M",
-                    f"-Dfile.encoding=UTF-8"
+                    f"-Xmx{memory}M", 
+                    f"-Xms{memory}M",
+                    f"-Dfile.encoding=UTF-8",
+                    "-XX:+UseG1GC",
+                    "-XX:-UseAdaptiveSizePolicy",
+                    "-XX:-OmitStackTraceInFastThrow",
+                    "-Djdk.lang.Process.allowAmbiguousCommands=true",
+                    "-Dfml.ignoreInvalidMinecraftCertificates=True",
+                    "-Dfml.ignorePatchDiscrepancies=True",
+                    "-Dlog4j2.formatMsgNoLookups=true"
                 ],
                 "launcherName": "BuggCraft Launcher",
                 "launcherVersion": "1.0"
@@ -284,158 +303,197 @@ class MinecraftLibLauncher(QObject):
         else:
             self.signals.error.emit(message)
     
-    def stop(self, force=False):
-        """停止游戏进程"""
-        print('正在停止游戏', self.running, self.stopping)
+    def stop(self, force: bool = False) -> None:
+        """停止游戏进程及其所有子进程
+        
+        Args:
+            force: 是否强制终止进程。为True时跳过优雅关闭直接强制杀死进程。
+        """
+        print(f'[Stop] 停止请求: force={force}, 当前状态: running={self.running}, stopping={self.stopping}')
+        
+        # 检查是否已在停止过程中或未运行
         if not self.running or self.stopping:
+            print('[Stop] 进程未运行或已在停止中，无需操作')
             return
         
         self.stopping = True
+        self.signals.output.emit("正在停止游戏...")
         
         try:
-            # 通知停止
-            print('正在停止游戏')
-            self.signals.output.emit("正在停止游戏...")
+            # 1. 首先尝试优雅终止
+            if not force:
+                if self._attempt_graceful_shutdown():
+                    self._cleanup_after_stop()
+                    return
             
-            # 首先尝试向主进程发送信号
-            try:
-                if platform.system() == "Windows":
-                    # Windows: 使用terminate
-                    print('正在停止游戏 terminate')
-                    self.process.terminate()
-                else:
-                    # Unix: 发送SIGTERM
-                    self.process.send_signal(signal.SIGTERM)
-            except:
-                pass
-
-            # 记录要终止的进程
-            pids_to_kill = []
+            # 2. 强制终止路径
+            # 获取需要终止的所有进程ID（包括子进程）
+            pids_to_kill = self._get_all_process_pids()
+            print(f'[Stop] 需要终止的进程列表: {pids_to_kill}')
             
-            # 获取主进程信息
-            if self.process.poll() is None:
-                pids_to_kill.append(self.process.pid)
-            
-            # 获取所有子进程
-            for child in self.process_tree:
-                try:
-                    if child.is_running() and child.pid != os.getpid():
-                        pids_to_kill.append(child.pid)
-                except psutil.NoSuchProcess:
-                    continue
-            
-            # 去重
-            pids_to_kill = list(set(pids_to_kill))
-            
-            print(f'尝试停止进程 {pids_to_kill}')
-            self.output.emit(f"尝试停止进程: {pids_to_kill}")
-            
-            # 如果需要强制停止或普通停止失败
-            if force or not self.wait_for_exit(5):
+            # 首先尝试发送SIGTERM（Unix）或terminate（Windows）
+            if not self._terminate_processes(pids_to_kill):
+                print('[Stop] 优雅终止失败，将进行强制终止')
                 # 强制终止所有进程
-                for pid in pids_to_kill:
-                    try:
-                        if platform.system() == "Windows":
-                            # Windows: 使用taskkill
-                            print(f'尝试停止进程 使用taskkill {pid}')
-                            subprocess.run([
-                                "taskkill", 
-                                "/F",  # 强制
-                                "/T",  # 终止子进程
-                                "/PID", str(pid)
-                            ], check=False, timeout=5)
-                        else:
-                            # Unix: 发送SIGKILL
-                            os.kill(pid, signal.SIGKILL)
-                    except Exception as e:
-                        self.output.emit(f"停止进程错误: {str(e)}")
+                self._kill_processes_forcefully(pids_to_kill)
             
-            # 确保进程终止
-            for pid in pids_to_kill:
-                try:
-                    process = psutil.Process(pid)
-                    process.terminate()
-                    process.wait(timeout=2)
-                except:
-                    print(f'尝试停止进程 确保进程终止 {pid}')
-                    pass
+            # 3. 最终清理
+            self._cleanup_after_stop()
             
-            # 清除标准输出
-            if self.process.poll() is None:
-                self.process.stdout.close()
-            
-            # 尝试正常停止
-            if self._attempt_graceful_shutdown():
-                return
-                
-            # 强制终止
-            self._force_shutdown()
-
-            # 停止输出线程
-            if self.output_thread:
-                self.output_thread.stop()
-                self.output_thread.quit()
-                self.output_thread.wait()
-                self.output_thread = None
-
         except Exception as e:
-            self.signals.error.emit(f"停止请求错误: {str(e)}")
+            error_msg = f"停止进程时发生错误: {str(e)}"
+            print(f'[Stop] {error_msg}')
+            self.signals.error.emit(error_msg)
+        finally:
+            self.stopping = False
+            if not self.running:
+                print('[Stop] 进程已完全停止')
 
-    def _attempt_graceful_shutdown(self):
-        """尝试正常停止进程"""
-        try:
-            if not self.process or not self.process.pid:
-                return False
-                
-            # 对于 Windows 系统
-            if platform.system() == "Windows":
-                # 发送 CTRL_C_EVENT
-                os.kill(self.process.pid, signal.CTRL_C_EVENT)
-            else:
-                # 对于 Unix 系统
-                os.killpg(os.getpgid(self.process.pid), signal.SIGTERM)
-            
-            # 等待一段时间
-            for _ in range(10):
-                if self.process.poll() is not None:
-                    return True
-                time.sleep(0.2)
-                
-            return False
-        except:
-            return False
-    
-    def _force_shutdown(self):
-        """强制停止进程树"""
-        try:
-            if not self.process or not self.process.pid:
-                return False
-                
-            # 获取要终止的进程列表
-            pids_to_kill = [self.process.pid]
+
+    def _get_all_process_pids(self) -> List[int]:
+        """获取需要终止的所有进程ID（包括主进程和所有子进程）"""
+        pids_to_kill = []
+        
+        # 添加主进程
+        if hasattr(self, 'process') and self.process:
             try:
-                parent = psutil.Process(self.process.pid)
-                children = parent.children(recursive=True)
-                pids_to_kill.extend(p.pid for p in children)
+                if self.process.poll() is None:  # 进程仍在运行
+                    pids_to_kill.append(self.process.pid)
+                    
+                    # 使用psutil获取所有子进程
+                    try:
+                        parent = psutil.Process(self.process.pid)
+                        children = parent.children(recursive=True)  # 递归获取所有子进程
+                        for child in children:
+                            pids_to_kill.append(child.pid)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied):
+                        print('[Stop] 无法获取子进程信息，可能进程已退出')
             except:
                 pass
-            
-            # 终止所有进程
-            for pid in pids_to_kill:
-                try:
+        
+        # 去重并返回
+        return list(set(pids_to_kill))
+
+    def _terminate_processes(self, pids: List[int]) -> bool:
+        """尝试优雅终止所有进程，返回是否成功"""
+        all_terminated = True
+        
+        for pid in pids:
+            try:
+                proc = psutil.Process(pid)
+                if platform.system() == "Windows":
+                    proc.terminate()  # Windows: terminate()
+                else:
+                    proc.send_signal(signal.SIGTERM)  # Unix: SIGTERM
+                print(f'[Stop] 已向进程 {pid} 发送终止信号')
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                print(f'[Stop] 进程 {pid} 已退出或无访问权限')
+                continue
+        
+        # 等待进程退出
+        timeout = 5  # 等待5秒
+        start_time = time.time()
+        
+        for pid in pids:
+            try:
+                proc = psutil.Process(pid)
+                while time.time() - start_time < timeout:
+                    if proc.is_running():
+                        time.sleep(0.1)
+                    else:
+                        break
+                else:
+                    print(f'[Stop] 进程 {pid} 在{timeout}秒内未退出')
+                    all_terminated = False
+            except psutil.NoSuchProcess:
+                continue
+        
+        return all_terminated
+
+    def _kill_processes_forcefully(self, pids: List[int]) -> None:
+        """强制终止所有进程"""
+        for pid in pids:
+            try:
+                proc = psutil.Process(pid)
+                if proc.is_running():
                     if platform.system() == "Windows":
+                        # Windows: 使用taskkill命令强制终止进程树
                         subprocess.run([
                             "taskkill", 
                             "/F",  # 强制
                             "/T",  # 终止子进程
                             "/PID", str(pid)
-                        ], timeout=5, capture_output=True)
+                        ], capture_output=True, timeout=5)
+                        print(f'[Stop] 已强制终止Windows进程 {pid}')
                     else:
+                        # Unix: 发送SIGKILL
                         os.kill(pid, signal.SIGKILL)
-                except:
-                    continue
-        except:
-            pass
+                        print(f'[Stop] 已向进程 {pid} 发送SIGKILL')
+                    
+                    # 等待确认进程终止
+                    try:
+                        proc.wait(timeout=20)
+                    except (psutil.NoSuchProcess, psutil.TimeoutExpired):
+                        pass
+                        
+            except (psutil.NoSuchProcess, psutil.AccessDenied, subprocess.TimeoutExpired, Exception) as e:
+                print(f'[Stop] 强制终止进程 {pid} 时出错: {e}')
+                continue
+
+    def _attempt_graceful_shutdown(self) -> bool:
+        """尝试优雅关闭进程"""
+        try:
+            # 如果有标准输入，可以尝试发送关闭命令
+            if hasattr(self, 'process') and self.process and self.process.stdin:
+                try:
+                    self.process.stdin.write(b'stop\n')
+                    self.process.stdin.flush()
+                    print('[Stop] 已发送优雅停止命令')
+                    
+                    # 等待一段时间看进程是否自行退出
+                    for _ in range(10):  # 等待最多2秒
+                        if self.process.poll() is not None:
+                            return True
+                        time.sleep(0.2)
+                except (IOError, OSError):
+                    pass  #  stdin可能已关闭
+            
+            return False
+        except Exception as e:
+            print(f'[Stop] 优雅停止尝试失败: {e}')
+            return False
+
+    def _cleanup_after_stop(self) -> None:
+        """停止后的清理工作"""
+        # 关闭进程标准流
+        if hasattr(self, 'process') and self.process:
+            for stream in [self.process.stdin, self.process.stdout, self.process.stderr]:
+                if stream:
+                    try:
+                        stream.close()
+                    except:
+                        pass
+        
+        # 停止输出线程
+        if hasattr(self, 'output_thread') and self.output_thread:
+            try:
+                self.output_thread.stop()
+                self.output_thread.quit()
+                try:
+                    self.output_thread.wait(timeout=20)
+                except Exception as e:
+                    pass
+                self.output_thread = None
+                print('[Stop] 输出线程已停止')
+            except Exception as e:
+                print(f'[Stop] 停止输出线程时出错: {e}')
+        
+        # 重置状态
+        self.running = False
+        self.stopping = False
+        print('[Stop] 清理完成')
+
+
     
     def is_running(self):
         """检查游戏是否正在运行"""
