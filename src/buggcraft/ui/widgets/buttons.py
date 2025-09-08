@@ -1,0 +1,319 @@
+# QMButton, PreciseSpacingButton
+
+import os
+from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont, QPixmap
+
+
+class QMButton(QLabel):
+    """切换账号按钮 - 使用setPixmap设置背景图"""
+    
+    # 定义点击信号
+    clicked = Signal()
+    
+    def __init__(self,
+        text,
+        parent=None,
+        size=(244, 44),
+        font_size=12,
+        background_image=None,
+        icon = None,
+        icon_after=False,  # icon 放后面
+        offset_right=0,  # icon图标位置偏移量
+        icon_size=(14, 14),
+        background_hover = "background-color: rgba(255, 255, 255, 0.1);",
+        background_color = "background-color: rgba(34, 34, 34, 1);",
+        scale_ratio=1.0
+    ):
+        super().__init__(parent)
+        self._text = text
+        self.background_image = background_image
+        self.background_hover = background_hover
+        self.background_color = background_color  # f"background-color: #222222;"
+        self._size_w, self._size_h = size
+
+        self.offset_right = offset_right
+        self.font_size = font_size
+        self.icon = icon
+        self.icon_after = icon_after
+        
+        self.icon_size = icon_size
+        self.scale_ratio = scale_ratio
+        self.init_ui()
+        
+    def init_ui(self):
+        # 设置按钮固定大小
+        self.setFixedSize(self._size_w * self.scale_ratio, self._size_h * self.scale_ratio)
+        self.setAlignment(Qt.AlignCenter)
+        
+        # 设置背景图片
+        if self.background_image and os.path.exists(self.background_image):
+            self.setPixmap(QPixmap(self.background_image).scaled(
+                self._size_w * self.scale_ratio,
+                self._size_h * self.scale_ratio,
+                Qt.IgnoreAspectRatio,
+                Qt.SmoothTransformation
+            ))
+        else:
+            self.setStyleSheet(self.background_color)
+        
+        # 创建包含文本和箭头的容器
+        self.content_widget = QWidget(self)
+        self.content_widget.setGeometry(0, 0, self._size_w* self.scale_ratio, self._size_h * self.scale_ratio)
+
+        # 创建水平布局
+        content_layout = QHBoxLayout(self.content_widget)
+        content_layout.setContentsMargins(self.offset_right * self.scale_ratio, 0, 0, 0)
+        content_layout.setSpacing(5)
+        
+        # 创建文本标签
+        self.text_label = QLabel(self._text)
+        self.text_label.setFont(QFont("Source Han Sans CN Heavy", self.font_size * self.scale_ratio))  # self.font_size
+        self.text_label.setStyleSheet(f"color: #f2f2f2; background-color: transparent;")
+        self.text_label.setAlignment(Qt.AlignCenter)
+        
+        # 创建箭头图标标签
+        w, h = self.icon_size
+        self.icon_label = QLabel()
+        if self.icon and os.path.exists(self.icon):
+            self.icon_label.setPixmap(QPixmap(self.icon).scaled(
+                w * self.scale_ratio,
+                h * self.scale_ratio,
+                Qt.IgnoreAspectRatio,
+                Qt.SmoothTransformation
+            ))
+        self.icon_label.setStyleSheet(f"background-color: transparent;")
+        self.icon_label.setAlignment(Qt.AlignCenter)
+        
+        # self.icon_after
+        _icon = [self.text_label]
+        # 将文本和图标添加到布局中
+        content_layout.addStretch()
+        if self.icon and os.path.exists(self.icon):
+            _icon.append(self.icon_label)
+        
+        if not self.icon_after:
+            _icon.reverse()
+
+        for i in _icon:
+            content_layout.addWidget(i)
+            # content_layout.addSpacing(self.icon_offset_right)
+            
+        content_layout.addStretch()
+
+        # 启用鼠标跟踪以检测悬停事件
+        self.setMouseTracking(True)
+    
+    def mousePressEvent(self, event):
+        """处理鼠标点击事件"""
+        self.clicked.emit()
+        super().mousePressEvent(event)
+    
+    def setText(self, text):
+        """设置按钮文本"""
+        self.text_label.setText(text)
+    
+    def setIcon(self, icon_path):
+        """设置按钮图标"""
+        w, h = self.icon_size
+        if os.path.exists(icon_path):
+            self.icon_label.setPixmap(QPixmap(icon_path).scaled(
+                w * self.scale_ratio, 
+                h * self.scale_ratio, 
+                Qt.IgnoreAspectRatio, 
+                Qt.SmoothTransformation
+            ))
+    
+    def setBackground(self, bg_path):
+        """设置按钮背景"""
+        if os.path.exists(bg_path):
+            self.setPixmap(QPixmap(bg_path).scaled(
+                self._size_w * self.scale_ratio,
+                self._size_h * self.scale_ratio,
+                Qt.IgnoreAspectRatio,
+                Qt.SmoothTransformation
+            ))
+    
+    def enterEvent(self, event):
+        """鼠标进入事件 - 添加悬停效果"""
+        self.setStyleSheet(self.background_hover)
+        super().enterEvent(event)
+    
+    def leaveEvent(self, event):
+        """鼠标离开事件 - 移除悬停效果"""
+        self.setStyleSheet(self.background_color)
+        super().leaveEvent(event)
+
+
+class QMStartButton(QWidget):
+    """紧凑型双行文本按钮（固定尺寸240x44）"""
+    
+    clicked = Signal()  # 点击信号
+    
+    def __init__(self, line1="开始游戏", line2="游戏版本号", parent=None, scale_ratio=1):
+        super().__init__(parent)
+        self.scale_ratio = scale_ratio
+        # 创建主布局
+        self.main_layout = QVBoxLayout(self)
+
+        # 创建文本容器
+        self.text_container = QWidget()
+        self.text_container.setFixedSize(326 * self.scale_ratio, 73 * self.scale_ratio)
+        self.text_layout = QVBoxLayout(self.text_container)
+        self.text_layout.setContentsMargins(0, 20 * self.scale_ratio, 0, 10 * self.scale_ratio)  # 文本容器内部边距为0
+        self.text_layout.setSpacing(0)  # 文本行间距初始为0
+        
+        # 第一行文本标签
+        self.line1_label = QLabel(line1)
+        self.line1_label.setAlignment(Qt.AlignCenter)
+        self.line1_label.setStyleSheet(f"""
+            QLabel {{
+                color: #f2f2f2;
+                font-size: {22 * self.scale_ratio}px;
+                font-weight: bold;
+                margin: 0;
+                padding: 0;
+            }}
+        """)
+        
+        # 第二行文本标签
+        self.line2_label = QLabel(line2)
+        self.line2_label.setAlignment(Qt.AlignCenter)
+        self.line2_label.setStyleSheet(f"""
+            QLabel {{
+                color: #e8e7e7;
+                font-size: {13 * self.scale_ratio}px;
+                margin: 0;
+                padding: 0;
+            }}
+        """)
+        
+        # 添加文本标签到文本容器
+        self.text_layout.addWidget(self.line1_label)
+        self.text_layout.addWidget(self.line2_label)
+        self.main_layout.addWidget(self.text_container, 0, Qt.AlignCenter)
+        
+        # 设置按钮样式
+        self.set_start_style()
+        
+        # 设置光标
+        self.setCursor(Qt.PointingHandCursor)
+    
+    def set_start_style(self):
+        """启动游戏样式"""
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: #FF9800;
+                border-radius: {4 * self.scale_ratio}px;
+                margin: 0;
+                padding: 0;
+            }}
+        """)
+    
+    def set_start_tab_style(self):
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: #66BB6A;
+                border-radius: {4 * self.scale_ratio}px;
+                margin: 0;
+                padding: 0;
+            }}
+        """)
+    
+    def set_stop_style(self):
+        """停止游戏样式"""
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: #F44800;
+                border-radius: {4 * self.scale_ratio}px;
+                margin: 0;
+                padding: 0;
+            }}
+        """)
+
+    def set_line_spacing(self, spacing):
+        """设置两行文本之间的间距"""
+        # 设置文本行间距
+        self.text_layout.setSpacing(spacing)
+        
+        # 调整文本容器在按钮中的位置
+        self.adjust_container_position(spacing)
+    
+    def adjust_container_position(self, spacing):
+        """根据间距调整文本容器位置"""
+        # 计算文本容器的总高度
+        line1_height = self.line1_label.sizeHint().height()
+        line2_height = self.line2_label.sizeHint().height()
+        container_height = line1_height + line2_height + spacing
+        
+        # 计算垂直偏移量，使文本在按钮中垂直居中
+        button_height = self.height()
+        top_offset = max(0, (button_height - container_height) // 2)
+        
+        # 设置文本容器的几何位置
+        self.text_container.setGeometry(
+            0,  # x坐标
+            top_offset,  # y坐标
+            240 * self.scale_ratio,  # 宽度
+            container_height  # 高度
+        )
+    
+    def set_text_padding(self, top=0, bottom=0):
+        """设置文本容器的上下内边距"""
+        # 获取当前边距
+        current_margins = self.text_layout.contentsMargins()
+        
+        # 设置新的边距 - 只改变上下边距
+        self.text_layout.setContentsMargins(
+            current_margins.left(),   # 左
+            top,                      # 上
+            current_margins.right(),   # 右
+            bottom                    # 下
+        )
+        
+        # 重新调整位置
+        self.adjust_container_position(self.text_layout.spacing())
+    
+    def set_texts(self, line1, line2):
+        """设置两行文本"""
+        self.line1_label.setText(line1)
+        self.line2_label.setText(line2)
+        self.adjust_container_position(self.text_layout.spacing())
+    
+    def set_line1_style(self, color, font_size, font_weight="bold"):
+        """设置第一行文本样式"""
+        self.line1_label.setStyleSheet(f"""
+            QLabel {{
+                color: {color};
+                font-size: {font_size}px;
+                font-weight: {font_weight};
+                margin: 0;
+                padding: 0;
+            }}
+        """)
+        self.adjust_container_position(self.text_layout.spacing())
+    
+    def set_line2_style(self, color, font_size):
+        """设置第二行文本样式"""
+        self.line2_label.setStyleSheet(f"""
+            QLabel {{
+                color: {color};
+                font-size: {font_size}px;
+                margin: 0;
+                padding: 0;
+            }}
+        """)
+        self.adjust_container_position(self.text_layout.spacing())
+
+    def mousePressEvent(self, event):
+        """鼠标点击事件"""
+        self.set_start_style()
+        super().mousePressEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        """鼠标释放事件"""
+        self.set_start_style()
+        self.clicked.emit()
+        super().mouseReleaseEvent(event)
+
