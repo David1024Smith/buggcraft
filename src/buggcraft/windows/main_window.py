@@ -216,10 +216,11 @@ class MinecraftLauncher(QMainWindow):
         self.launch_btn.set_texts("下载游戏", self.minecraft_version)
         self.title_bar.tabs.setCurrentIndex(0)  # 切换到启动
         self.launch_game()
-    
+
+
     def closeEvent(self, event):
-        """窗口关闭事件处理"""
-        event.accept()
+        self.settings_page.save_all_settings()  # 假设 settings_page 是 SettingsPage 实例
+        super().closeEvent(event)
 
     def launch_game(self):
         """启动游戏"""
