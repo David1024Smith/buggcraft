@@ -1,14 +1,18 @@
 # 设置页面
 
-# src/buggcraft/ui/pages/settings_page.py
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-                              QFrame, QPushButton, QStackedWidget, QLineEdit, QPlainTextEdit,
-                              QCheckBox, QComboBox, QSpinBox, QSlider, QGroupBox,
-                              QRadioButton, QButtonGroup, QScrollArea, QFormLayout)
+import os
+from typing import Any, Dict, Optional
+
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QFrame, QPushButton, QStackedWidget, QLineEdit, QPlainTextEdit,
+    QCheckBox, QComboBox, QSpinBox, QSlider, QGroupBox,
+    QRadioButton, QButtonGroup, QScrollArea, QFormLayout
+)
 from PySide6.QtCore import Qt, Signal
 from .base_page import BasePage
 from utils.helpers import MemorySliderManager
-
+from config.settings import get_settings_manager
 
 class SettingsPage(BasePage):
     """设置页面 - 继承BasePage"""
@@ -18,14 +22,10 @@ class SettingsPage(BasePage):
     
     def __init__(self, home_path, scale_ratio=1.0, parent=None):
         super().__init__(home_path, scale_ratio, parent)
+        self.settings_manager = get_settings_manager()  # 获取配置管理器
         self.init_ui()
-        # 初始化内存管理器
-        # self.memory_manager = MemorySliderManager(
-        #     slider=self.memory_slider,
-        #     allocated_label=self.allocated_label,
-        #     used_label=self.used_label,
-        #     free_label=self.free_label
-        # )
+        # 加载设置
+        self.load_settings_to_ui()
         
     def init_ui(self):
         """初始化UI"""
@@ -139,38 +139,39 @@ class SettingsPage(BasePage):
         ####################
         # 启动器可见性：选项 #
         launcher_visibility_layout = QFormLayout()
-        self.launcher_visibility = QComboBox()
-        self.launcher_visibility.addItems(["游戏启动后保持不变", "游戏启动后最小化", "游戏启动后隐藏，游戏退出后重新打开", "游戏启动后立即关闭"])
-        self.launcher_visibility.currentTextChanged.connect(
-            lambda t: self.on_setting_changed("window_size", t)
+        self.launcher_visibility_combo = QComboBox()  # 使用唯一变量名
+        self.launcher_visibility_combo.addItems(["游戏启动后保持不变", "游戏启动后最小化", "游戏启动后隐藏，游戏退出后重新打开", "游戏启动后立即关闭"])
+        self.launcher_visibility_combo.currentTextChanged.connect(
+            lambda t: self.on_setting_changed("launcher.visibility", t)
         )
-        launcher_visibility_layout.addRow("启动器可见性", self.launcher_visibility)
+
+        launcher_visibility_layout.addRow("启动器可见性", self.launcher_visibility_combo)
         ###################
         # 进程优先级: 选项 #
-        self.launcher_visibility = QComboBox()
-        self.launcher_visibility.addItems(["高 (优先保证游戏运行，但可能造成其他程序卡顿)", "中 (平衡)", "低 (优先保证其他程序运行，但可能造成游戏卡顿)"])
-        self.launcher_visibility.currentTextChanged.connect(
-            lambda t: self.on_setting_changed("window_size", t)
+        self.process_priority_combo = QComboBox()  # 使用唯一变量名
+        self.process_priority_combo.addItems(["高 (优先保证游戏运行，但可能造成其他程序卡顿)", "中 (平衡)", "低 (优先保证其他程序运行，但可能造成游戏卡顿)"])
+        self.process_priority_combo.currentTextChanged.connect(
+            lambda t: self.on_setting_changed("launcher.process_priority", t)
         )
-        launcher_visibility_layout.addRow("进程优先级", self.launcher_visibility)
+        launcher_visibility_layout.addRow("进程优先级", self.process_priority_combo)
         #################
         # 窗口大小: 选项 #
-        self.launcher_visibility = QComboBox()
-        self.launcher_visibility.addItems(["默认", "与启动器一致", "最大化"])
-        self.launcher_visibility.currentTextChanged.connect(
-            lambda t: self.on_setting_changed("window_size", t)
+        self.window_size_combo = QComboBox()  # 使用唯一变量名
+        self.window_size_combo.addItems(["默认", "与启动器一致", "最大化"])
+        self.window_size_combo.currentTextChanged.connect(
+            lambda t: self.on_setting_changed("launcher.window_size", t)
         )
-        launcher_visibility_layout.addRow("窗口大小", self.launcher_visibility)
+        launcher_visibility_layout.addRow("窗口大小", self.window_size_combo)
 
         #################
         # 游戏Java: 选项 #
         #################
-        self.launcher_visibility = QComboBox()
-        self.launcher_visibility.addItems(["自动选择合适的Java"])  # TODO
-        self.launcher_visibility.currentTextChanged.connect(
-            lambda t: self.on_setting_changed("window_size", t)
+        self.game_java_combo = QComboBox()  # 使用唯一变量名
+        self.game_java_combo.addItems(["自动选择合适的Java"])
+        self.game_java_combo.currentTextChanged.connect(
+            lambda t: self.on_setting_changed("java.path", t)
         )
-        launcher_visibility_layout.addRow("游戏Java", self.launcher_visibility)
+        launcher_visibility_layout.addRow("游戏Java", self.game_java_combo)
 
         # 在选项框下方添加按钮行
         button_container = QWidget()
@@ -248,9 +249,6 @@ class SettingsPage(BasePage):
         # 创建步长滑块
         game_memory_layout = QFormLayout()
         self.memory_slider = StepSlider(step=512, orientation=Qt.Horizontal)
-        self.memory_slider.setRange(512, 8192)  # 512MB 到 8GB
-        self.memory_slider.setValue(2048)  # 默认2GB
-
         self.memory_slider.setTickPosition(QSlider.TicksBelow)
         self.memory_slider.setTickInterval(512)  # 每512MB一个刻度
         self.memory_slider.setSingleStep(256)  # 步长256MB
@@ -375,8 +373,10 @@ class SettingsPage(BasePage):
             slider=self.memory_slider,
             allocated_label=allocated_label,
             used_label=self.used_value,
-            free_label=self.free_value
+            free_label=self.free_value,
         )
+        self.memory_manager.update_system_memory()
+        self.memory_slider.valueChanged.connect(lambda: self.on_setting_changed("memory.allocation", self.memory_slider.value()))
 
         # 将表单布局添加到卡片的内容区域
         crad_game_memory_widget.add_layout(game_memory_layout)
@@ -402,25 +402,33 @@ class SettingsPage(BasePage):
         """)
         # JVM参数
         advanced_options_layout = QFormLayout()
-        self.jvm_args_input = QPlainTextEdit()
+        self.jvm_args_input = QLineEdit()
+        self.jvm_args_input.textChanged.connect(
+            lambda t: self.on_setting_changed("game.launch_jvm_args", t)
+        )
         advanced_options_layout.addRow("Java虚拟机参数", self.jvm_args_input)
         # 启动参数
         self.launch_args_input = QLineEdit()
         self.launch_args_input.textChanged.connect(
-            lambda t: self.on_setting_changed("launch_args", t)
+            lambda t: self.on_setting_changed("game.launch_args", t)
         )
         advanced_options_layout.addRow("启动参数", self.launch_args_input)
         # 启动前执行命令
         self.pre_launch_command = QLineEdit()
         self.pre_launch_command.textChanged.connect(
-            lambda t: self.on_setting_changed("pre_launch_command", t)
+            lambda t: self.on_setting_changed("game.launch_pre_command", t)
         )
         advanced_options_layout.addRow("启动前执行命令", self.pre_launch_command)
         
-        # 高性能Java版本
-        high_perf_layout = QHBoxLayout()
+        # 启用独立显卡
         self.high_perf_java_yes = QRadioButton("是")
         self.high_perf_java_no = QRadioButton("否")
+        self.high_perf_java_no.setChecked(True)  # 默认选中“否”
+        self.high_perf_java_yes.toggled.connect(lambda: self.on_setting_changed("gpu_enable", self.high_perf_java_yes.isChecked()))
+        self.high_perf_java_no.toggled.connect(lambda: self.on_setting_changed("gpu_enable", self.high_perf_java_yes.isChecked()))
+
+        # 启用独立显卡
+        high_perf_layout = QHBoxLayout()
         self.high_perf_java_no.setChecked(True)
         high_perf_group = QButtonGroup(self)
         high_perf_group.addButton(self.high_perf_java_yes)
@@ -455,9 +463,8 @@ class SettingsPage(BasePage):
         # BUG调试
         debug_layout = QFormLayout()
         self.bug_debug_mode = QCheckBox("BUG调试模式")
-        self.bug_debug_mode.stateChanged.connect(
-            lambda s: self.on_setting_changed("bug_debug_mode", s == Qt.Checked)
-        )
+        self.bug_debug_mode.toggled.connect(lambda: self.on_setting_changed("debug_endble", self.bug_debug_mode.isChecked()))
+
         debug_layout.addRow("测试", self.bug_debug_mode)
 
         debug_widget.add_layout(debug_layout)
@@ -476,7 +483,6 @@ class SettingsPage(BasePage):
         page_layout = QVBoxLayout(page)
         page_layout.addWidget(scroll_area)
         self.settings_stack.addWidget(page)
-
 
     def create_personalization_settings(self):
         """创建个性化设置页面"""
@@ -535,19 +541,74 @@ class SettingsPage(BasePage):
     def show_other_settings(self):
         """显示其他设置"""
         self.settings_stack.setCurrentIndex(2)
+
+    def on_setting_changed(self, key: str, value: Any):
+        """处理设置改变，更新配置管理器并保存"""
+        # 更新配置管理器
+        success = self.settings_manager.set_setting(key, value)
+        if success:
+            # 立即保存配置（或可以延迟保存以提高性能）
+            self.settings_manager.save_settings()
+            self.settings_changed.emit(key, value)
+        else:
+            print(f"保存设置失败: {key} = {value}")
     
-    def on_setting_changed(self, key, value):
-        """处理设置改变"""
-        self.settings_changed.emit(key, value)
-    
-    def save_settings(self):
-        """保存设置"""
-        # 这里应该实现设置保存逻辑
-        print("设置已保存")
-        # 可以发出一个信号，让主窗口处理设置保存
-    
-    def load_settings(self, settings):
-        """加载设置"""
-        # 这里应该实现设置加载逻辑
-        # 根据提供的设置字典更新UI控件
-        pass
+    def save_all_settings(self):
+        """显式保存所有设置（可用于点击保存按钮时）"""
+        # 这里可以添加一些验证逻辑
+        success = self.settings_manager.save_settings()
+        if success:
+            print("所有设置已保存")
+        else:
+            print("保存设置失败")
+
+    def load_settings_to_ui(self):
+        """将配置加载到UI控件"""
+        try:
+            # 启动器可见性
+            visibility = self.settings_manager.get_setting("launcher.visibility", "保持不变")
+            self.launcher_visibility_combo.setCurrentText(visibility)
+            
+            # 进程优先级
+            priority = self.settings_manager.get_setting("launcher.process_priority", "中 (平衡)")
+            self.process_priority_combo.setCurrentText(priority)
+
+            # 窗口大小
+            size = self.settings_manager.get_setting("launcher.window_size", "默认")
+            self.window_size_combo.setCurrentText(size)
+
+            # 游戏Java
+            java_path = self.settings_manager.get_setting("java.path", "自动选择合适的Java")
+            self.game_java_combo.setCurrentText(java_path)
+            
+            # 内存分配 y
+            memory = self.settings_manager.get_setting("memory.allocation", 2048)
+            self.memory_slider.setValue(memory)
+            
+            # JVM参数
+            jvm_args = self.settings_manager.get_setting("game.launch_jvm_args", "-XX:+UseG1GC -XX:-UseAdaptiveSizePolicy -XX:-OmitStackTraceInFastThrow -Djdk.lang.Process.allowAmbiguousCommands=true -Dfml.ignoreInvalidMinecraftCertificates=True -Dfml.ignorePatchDiscrepancies=True -Dlog4j2.formatMsgNoLookups=true")
+            self.jvm_args_input.setText(jvm_args)
+
+            # 启动参数
+            launch_args = self.settings_manager.get_setting("game.launch_args", "")
+            self.launch_args_input.setText(launch_args)
+
+            # 启动前执行命令
+            pre_launch_command = self.settings_manager.get_setting("game.launch_pre_command", "")
+            self.pre_launch_command.setText(pre_launch_command)
+
+            # 启用独立显卡
+            pre_launch_command = self.settings_manager.get_setting("gpu_enable", False)
+            if pre_launch_command:
+                self.high_perf_java_yes.setChecked(True)
+            else:
+                self.high_perf_java_no.setChecked(True)
+
+            # 调试模式
+            debug_mode = self.settings_manager.get_setting("debug_endble", False)
+            self.bug_debug_mode.setChecked(debug_mode)
+            
+            print("配置已加载到UI")
+            
+        except Exception as e:
+            print(f"加载配置到UI时出错: {e}")

@@ -41,9 +41,6 @@ class MemorySliderManager:
         """更新分配的内存值"""
         # 更新分配值显示
         self.allocated_label.setText(f"{value} MB")
-        
-        # 这里可以添加保存设置逻辑
-        # self.save_setting("memory_allocation", value)
     
     def update_system_memory(self):
         """更新系统内存使用情况"""
