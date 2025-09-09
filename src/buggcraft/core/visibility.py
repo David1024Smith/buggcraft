@@ -10,7 +10,7 @@ class VisibilitySettings:
 
 
 class LauncherVisibilityManager:
-    """启动器可见性管理器 - 修复最小化恢复问题"""
+    """启动器可见性管理器"""
     def __init__(self, main_window):
         self.main_window = main_window
         self.current_setting = VisibilitySettings.KEEP_VISIBLE
