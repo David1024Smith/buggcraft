@@ -2,20 +2,19 @@
 
 import os
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QStackedWidget,
-    QLabel, QLineEdit, QPushButton, QComboBox, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QGroupBox, QFrame, QMessageBox, QScrollArea, QSlider, QCheckBox, QButtonGroup, QRadioButton,
-    QProgressBar
+    QMainWindow, QWidget, QStackedWidget, QVBoxLayout, QHBoxLayout, QMessageBox
 )
 from PySide6.QtCore import Qt, QTimer, QUrl, QSize
-from PySide6.QtGui import QPixmap, QDesktopServices, QPainter
+from PySide6.QtGui import QDesktopServices
 
+from utils.helpers import scale_component, get_physical_resolution
+from config.settings import get_settings_manager
 from core.launcher import MinecraftLibLauncher
+from core.visibility import LauncherVisibilityManager, VisibilitySettings
 from ui.widgets.titlebar import TitleBar
 from ui.widgets.buttons import QMStartButton
 from ui.widgets.cards import QMCard
 from ui.widgets.panels import UserPanel
-from utils.helpers import scale_component
 from ui.pages.singleplayer_page import SinglePlayerPage
 from ui.pages.multiplayer_page import MultiplayerPage
 from ui.pages.download_page import DownloadPage
@@ -24,15 +23,21 @@ from ui.pages.more_page import MorePage
 
 
 class MinecraftLauncher(QMainWindow):
-    """主启动器界面 - PCL风格"""
+    """主启动器界面"""
 
     def __init__(self, HOME_PATH):
         super().__init__()
         self.HOME_PATH = HOME_PATH
+        self.settings_manager = get_settings_manager(self.HOME_PATH)  # 获取配置管理器
+        # 初始化可见性管理器
+        self.visibility_manager = LauncherVisibilityManager(self)
+
+        self.base_w = 1280-1280/3
+        self.base_h = 832-832/3
         self.launcher = None  # 游戏线程
         # 原始设计尺寸（例如1920x1080）  875  (875 - 48 + 2) * self.scale_ratio
         # self.scale_ratio = scale_component(QSize(1280, 832), QSize(1280, 832))
-        self.scale_ratio = scale_component(QSize(1280, 832), QSize(1280-1280/4, 832-832/4))
+        self.scale_ratio = scale_component(QSize(1280, 832), QSize(self.base_w, self.base_h))
 
         # 用户信息
         self.minecraft_uuid = None
@@ -95,6 +100,8 @@ class MinecraftLauncher(QMainWindow):
 
         print('minecraft_handle_started', '游戏已启动')
         QTimer.singleShot(5000, lambda: handle_status())
+        # 应用可见性设置
+        self.visibility_manager.apply_setting(self.settings_manager.get_setting('launcher.visibility', "游戏启动后保持不变"))
     
     def minecraft_handle_stopped(self, exit_code):
         """游戏停止处理"""
@@ -116,14 +123,13 @@ class MinecraftLauncher(QMainWindow):
 
         print('minecraft_handle_stopped', f"游戏已退出，代码: {exit_code}")
         QTimer.singleShot(5000, lambda: handle_status(exit_code))
+        # 恢复启动器（如果需要）
+        self.visibility_manager.restore_if_needed()
     
     def minecraft_handle_error(self, message):
         """错误处理"""
         print('minecraft_handle_error', message)
-        # self.log_view.append(f"<font color='red'>{message}</font>")
-        # self.start_btn.setEnabled(True)
-        # self.stop_btn.setEnabled(False)
-        # self.progress_bar.setVisible(False)
+        self.visibility_manager.restore_if_needed()
     
     def minecraft_handle_progress(self, progress):
         """处理进度更新"""
@@ -140,7 +146,7 @@ class MinecraftLauncher(QMainWindow):
         main_layout.setSpacing(0)
         
         # 自定义标题栏
-        self.title_bar = TitleBar(self, HOME_PATH=self.HOME_PATH, scale_ratio=self.scale_ratio)
+        self.title_bar = TitleBar(self, HOME_PATH=self.HOME_PATH)
         main_layout.addWidget(self.title_bar)
         
         # 主内容区域
@@ -150,7 +156,7 @@ class MinecraftLauncher(QMainWindow):
         content_layout.setSpacing(0)
         
         # 左侧用户面板
-        self.user_panel = UserPanel(self, HOME_PATH=self.HOME_PATH, scale_ratio=self.scale_ratio)
+        self.user_panel = UserPanel(self, HOME_PATH=self.HOME_PATH)
         self.user_panel.login_success.connect(self.handle_login_success)
         self.user_panel.panel_hide.connect(self.user_panel.hide)
         self.user_panel.panel_show.connect(self.user_panel.show)
@@ -173,20 +179,20 @@ class MinecraftLauncher(QMainWindow):
         self.content_stack.addWidget(self.startedplayer_page)
         
         # 多人游戏页面
-        self.multiplayer_page = MultiplayerPage(self.HOME_PATH, self.scale_ratio)
-        self.content_stack.addWidget(self.multiplayer_page)
+        # self.multiplayer_page = MultiplayerPage(self.HOME_PATH, self.scale_ratio)
+        # self.content_stack.addWidget(self.multiplayer_page)
         
         # 下载页面
-        self.download_page = DownloadPage(self.HOME_PATH, self.scale_ratio)
-        self.content_stack.addWidget(self.download_page)
+        # self.download_page = DownloadPage(self.HOME_PATH, self.scale_ratio)
+        # self.content_stack.addWidget(self.download_page)
         
         # 设置页面
         self.settings_page = SettingsPage(self.HOME_PATH, self.scale_ratio)
         self.content_stack.addWidget(self.settings_page)
         
         # 更多页面
-        self.more_page = MorePage(self.HOME_PATH, self.scale_ratio)
-        self.content_stack.addWidget(self.more_page)
+        # self.more_page = MorePage(self.HOME_PATH, self.scale_ratio)
+        # self.content_stack.addWidget(self.more_page)
 
     def switch_tab(self, index):
         """切换标签页"""
@@ -253,6 +259,20 @@ class MinecraftLauncher(QMainWindow):
                 self.startedplayer_page.launch_btn.setEnabled(False)
                 self.startedplayer_page.launch_btn.set_texts(f"启动中...", self.minecraft_version)
                 self.launcher.set_language('简体中文')
+                size = self.settings_manager.get_setting("launcher.window_size", "默认")
+
+                # ["默认", "与启动器一致", "最大化"]
+                fullscreen = False
+                w, h = None, None
+                if size == '默认':
+                    w, h = 854, 480
+                elif size == '与启动器一致': 
+                    # 转换为物理分辨率
+                    physical_width, physical_height = get_physical_resolution(self.width(), self.height())
+                    w, h = str(int(physical_width)), str(int(physical_height - 48 * self.scale_ratio))
+                elif size == '最大化':
+                    fullscreen=True
+
                 self.launcher.set_options(
                     uuid=self.minecraft_uuid,
                     username=self.minecraft_username,
@@ -260,7 +280,10 @@ class MinecraftLauncher(QMainWindow):
                     server=self.current_server if self.game_mode == "multiplayer" else None,
                     version=self.minecraft_version,
                     minecraft_directory=self.minecraft_directory,
-                    memory=1024
+                    memory=1024,
+                    width=w,
+                    height=h,
+                    fullscreen=fullscreen
                 )
 
                 # 启动线程
