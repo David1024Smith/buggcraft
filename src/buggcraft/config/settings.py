@@ -35,7 +35,7 @@ class SettingsManager:
         # 默认配置
         self.default_settings = {
             "launcher": {
-                "visibility": "保持不变",
+                "visibility": "游戏启动后保持不变",
                 "process_priority": "中 (平衡)",
                 "window_size": "默认"
             },
@@ -44,10 +44,10 @@ class SettingsManager:
                 "path": None
             },
             "memory": {
-                "allocation": 2048,
+                "allocation": 1024,
             },
             "game": {
-                "launch_jvm_args": "-XX:+UseG1GC -XX:-UseAdaptiveSizePolicy -XX:-OmitStackTraceInFastThrow -Djdk.lang.Process.allowAmbiguousCommands=true -Dfml.ignoreInvalidMinecraftCertificates=True -Dfml.ignorePatchDiscrepancies=True -Dlog4j2.formatMsgNoLookups=true",
+                "launch_jvm_args": "",
                 "launch_args": "",
                 "launch_pre_command": ""
             },
@@ -214,5 +214,6 @@ def get_settings_manager(path=None) -> SettingsManager:
     """获取全局配置管理器实例（单例模式）"""
     global _settings_manager_instance
     if _settings_manager_instance is None:
+        path = os.path.join(path, 'buggcreaft')
         _settings_manager_instance = SettingsManager(path)
     return _settings_manager_instance

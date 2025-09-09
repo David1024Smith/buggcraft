@@ -1,12 +1,11 @@
 # 设置页面
 
 import os
-from typing import Any, Dict, Optional
+from typing import Any
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame, QPushButton, QStackedWidget, QLineEdit, QPlainTextEdit,
-    QCheckBox, QComboBox, QSpinBox, QSlider, QGroupBox,
+    QFrame, QPushButton, QStackedWidget, QLineEdit, QComboBox, QSlider,
     QRadioButton, QButtonGroup, QScrollArea, QFormLayout
 )
 from PySide6.QtCore import Qt, Signal
@@ -14,7 +13,7 @@ from .base_page import BasePage
 from utils.helpers import MemorySliderManager
 from config.settings import get_settings_manager
 from config.javafinder import JavaPathFinder
-
+from core.visibility import VisibilitySettings
 
 class SettingsPage(BasePage):
     """设置页面 - 继承BasePage"""
@@ -101,12 +100,6 @@ class SettingsPage(BasePage):
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        # scroll_area.setStyleSheet("""
-        #     QScrollArea {
-        #         background-color: #252627;
-        #         color: #AEAEAE;
-        #     }
-        # """)
         scroll_area.setStyleSheet("background-color: transparent;")
 
         import os
@@ -142,7 +135,13 @@ class SettingsPage(BasePage):
         # 启动器可见性：选项 #
         launcher_visibility_layout = QFormLayout()
         self.launcher_visibility_combo = QComboBox()  # 使用唯一变量名
-        self.launcher_visibility_combo.addItems(["游戏启动后保持不变", "游戏启动后最小化", "游戏启动后隐藏，游戏退出后重新打开", "游戏启动后立即关闭"])
+        # self.launcher_visibility_combo.addItems(["游戏启动后保持不变", "游戏启动后最小化", "游戏启动后隐藏，游戏退出后重新打开", "游戏启动后立即关闭"])
+        self.launcher_visibility_combo.addItems([
+            VisibilitySettings.KEEP_VISIBLE,
+            VisibilitySettings.MINIMIZE,
+            VisibilitySettings.HIDE,
+            VisibilitySettings.CLOSE
+        ])
         self.launcher_visibility_combo.currentTextChanged.connect(
             lambda t: self.on_setting_changed("launcher.visibility", t)
         )
@@ -169,7 +168,9 @@ class SettingsPage(BasePage):
         # 游戏Java: 选项 #
         #################
         self.game_java_combo = QComboBox()  # 使用唯一变量名
-        self.game_java_combo.addItems(["自动选择合适的Java"])
+        # 设置自定义委托
+        self.game_java_combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.game_java_combo.addItems(["自动选择"])
         self.game_java_combo.currentTextChanged.connect(
             lambda t: self.on_setting_changed("java.path", t)
         )
@@ -438,7 +439,7 @@ class SettingsPage(BasePage):
         high_perf_layout.addWidget(self.high_perf_java_yes)
         high_perf_layout.addWidget(self.high_perf_java_no)
         high_perf_layout.addStretch()
-        advanced_options_layout.addRow("启用独立显卡", high_perf_layout)
+        # advanced_options_layout.addRow("启用独立显卡", high_perf_layout)
 
         crad_advanced_options_widget.add_layout(advanced_options_layout)
         layout.addWidget(crad_advanced_options_widget)
@@ -451,26 +452,26 @@ class SettingsPage(BasePage):
 
         ###############
         # BUG调试模式 #
-        debug_widget = QMCard(
-            title="高级启动选项",
-            icon=os.path.join(self.home_path, "resources/icons/union@2x.png")
-        )
-        debug_widget.setBackgroundColor("#252627")
-        debug_widget.setStyleSheet("""
-            QWidget {
-                background-color: #252627;
-                color: #AFAFAF;
-            }
-        """)
-        # BUG调试
-        debug_layout = QFormLayout()
-        self.bug_debug_mode = QCheckBox("BUG调试模式")
-        self.bug_debug_mode.toggled.connect(lambda: self.on_setting_changed("debug_endble", self.bug_debug_mode.isChecked()))
+        # debug_widget = QMCard(
+        #     title="高级启动选项",
+        #     icon=os.path.join(self.home_path, "resources/icons/union@2x.png")
+        # )
+        # debug_widget.setBackgroundColor("#252627")
+        # debug_widget.setStyleSheet("""
+        #     QWidget {
+        #         background-color: #252627;
+        #         color: #AFAFAF;
+        #     }
+        # """)
+        # # BUG调试
+        # debug_layout = QFormLayout()
+        # self.bug_debug_mode = QCheckBox("BUG调试模式")
+        # self.bug_debug_mode.toggled.connect(lambda: self.on_setting_changed("debug_endble", self.bug_debug_mode.isChecked()))
 
-        debug_layout.addRow("测试", self.bug_debug_mode)
+        # debug_layout.addRow("测试", self.bug_debug_mode)
 
-        debug_widget.add_layout(debug_layout)
-        layout.addWidget(debug_widget)
+        # debug_widget.add_layout(debug_layout)
+        # layout.addWidget(debug_widget)
         # 添加间隔 - 方法2：使用透明占位控件（更可靠）
         spacer = QWidget()
         spacer.setFixedHeight(10)
@@ -548,8 +549,9 @@ class SettingsPage(BasePage):
     def auto_search_java(self, java_path=None):
         """自动搜索Java安装"""
         # 显示搜索中状态
-        self.auto_search_button.setEnabled(False)
-        self.auto_search_button.setText("搜索中...")
+        if not java_path:
+            self.auto_search_button.setEnabled(False)
+            self.auto_search_button.setText("搜索中...")
         
         # 在后台线程中执行搜索（避免阻塞UI）
         from PySide6.QtCore import QThread, Signal, QObject
@@ -584,8 +586,9 @@ class SettingsPage(BasePage):
 
     def on_java_search_finished(self, java_installations, find_java):
         """Java搜索完成处理"""
-        self.auto_search_button.setEnabled(True)
-        self.auto_search_button.setText("自动搜索")
+        if not find_java:
+            self.auto_search_button.setEnabled(True)
+            self.auto_search_button.setText("自动搜索")
         
         if not java_installations:
             self.show_message("未找到Java安装", "请手动安装Java或指定Java路径")
@@ -597,8 +600,10 @@ class SettingsPage(BasePage):
             self.game_java_combo.removeItem(i)
 
         # 添加新的Java路径选项，并将路径设置为UserData
+        java_data = []
         for java_path, version in java_installations: # 假设这是你的搜索结果
             print(f'  -> {version} - {java_path}')
+            java_data.append((version, java_path))
             self.game_java_combo.addItem(java_path, java_path) # 添加Item并设置UserData  version, 
 
         # 自动选择推荐的Java
@@ -658,9 +663,12 @@ class SettingsPage(BasePage):
         """将配置加载到UI控件"""
         try:
             # 启动器可见性
-            visibility = self.settings_manager.get_setting("launcher.visibility", "保持不变")
-            self.launcher_visibility_combo.setCurrentText(visibility)
-            
+            visibility = self.settings_manager.get_setting("launcher.visibility", "游戏启动后保持不变")
+            """设置当前选中的选项"""
+            index = self.launcher_visibility_combo.findText(visibility)
+            if index >= 0:
+                self.launcher_visibility_combo.setCurrentIndex(index)
+
             # 进程优先级
             priority = self.settings_manager.get_setting("launcher.process_priority", "中 (平衡)")
             self.process_priority_combo.setCurrentText(priority)
@@ -671,7 +679,7 @@ class SettingsPage(BasePage):
 
             ##############################
             # 游戏Java，自动选择Java运行时 #
-            java_path = self.settings_manager.get_setting("java.path", "自动选择合适的Java")
+            java_path = self.settings_manager.get_setting("java.path", "自动选择")
             self.auto_search_java(java_path)
 
             # 内存分配 y
@@ -679,7 +687,8 @@ class SettingsPage(BasePage):
             self.memory_slider.setValue(memory)
             
             # JVM参数
-            jvm_args = self.settings_manager.get_setting("game.launch_jvm_args", "-XX:+UseG1GC -XX:-UseAdaptiveSizePolicy -XX:-OmitStackTraceInFastThrow -Djdk.lang.Process.allowAmbiguousCommands=true -Dfml.ignoreInvalidMinecraftCertificates=True -Dfml.ignorePatchDiscrepancies=True -Dlog4j2.formatMsgNoLookups=true")
+            # -XX:+UseG1GC -XX:-UseAdaptiveSizePolicy -XX:-OmitStackTraceInFastThrow -Djdk.lang.Process.allowAmbiguousCommands=true -Dfml.ignoreInvalidMinecraftCertificates=True -Dfml.ignorePatchDiscrepancies=True -Dlog4j2.formatMsgNoLookups=true
+            jvm_args = self.settings_manager.get_setting("game.launch_jvm_args", "")
             self.jvm_args_input.setText(jvm_args)
 
             # 启动参数

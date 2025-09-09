@@ -1,12 +1,12 @@
 # 更多页面
 
 # src/buggcraft/ui/pages/more_page.py
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-                              QFrame, QPushButton, QStackedWidget, QTextEdit, QButtonGroup,
-                              QScrollArea, QTextBrowser, QLineEdit, QComboBox,
-                              QGroupBox, QRadioButton)
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QPixmap
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QFrame, QPushButton, QStackedWidget, QButtonGroup,
+    QLineEdit, QGroupBox, QRadioButton
+)
+from PySide6.QtCore import Signal
 from .base_page import BasePage
 import os
 
