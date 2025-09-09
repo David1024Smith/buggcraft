@@ -1,44 +1,37 @@
-# CustomTitleBar 类
-
 import os
-
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QPushButton, QTabWidget, QHBoxLayout,
-    QSizePolicy, QTabBar
+    QWidget, QLabel, QPushButton, QHBoxLayout, 
+    QSizePolicy, QVBoxLayout, QSpacerItem
 )
-from PySide6.QtGui import QFont, QPixmap, QColor,  QIcon, QPainter, QMouseEvent
-from PySide6.QtCore import Qt, QPoint
-
+from PySide6.QtGui import QFont, QPixmap, QColor, QIcon, QPainter, QMouseEvent
+from PySide6.QtCore import Qt, QPoint, QSize
 
 class TitleBar(QWidget):
-    """自定义标题栏 - 使用 setTabIcon 方法"""
-    def __init__(self, parent, HOME_PATH, width=1200, scale_ratio=1):
+    """优化的自定义标题栏 - 使用布局管理器实现自适应"""
+    
+    def __init__(self, parent, HOME_PATH):
         super().__init__(parent)
         self.parent = parent
-
         self.HOME_PATH = HOME_PATH
         self.setObjectName("TitleBar")
-        self.scale_ratio = scale_ratio
         self.dragging = False
         self.drag_position = QPoint()
         
         # 图标资源
         self.app_icon = QIcon(os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'bar', 'app.png')))
-        start = QIcon(os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'bar', 'ic.png')))
-        # start
+        start_icon = QIcon(os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'bar', 'ic.png')))
+        
+        # 标签页配置
         self.tab_icons = {
-            "启动": start,
-            "联机大厅": start,
-            "下载": start,
-            "设置": start,
-            "更多": start
+            "启动": start_icon,
+            "设置": start_icon
         }
+        self.tab_names = ["启动", "设置"]
         
         # 创建透明图标（用于未选中状态）
         self.transparent_icon = QIcon(os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'bar', 'ic_no.png')))
-        self.transparent_icon.addPixmap(QPixmap(27 * self.scale_ratio, 27 * self.scale_ratio), QIcon.Normal, QIcon.Off)
         
-        self.setFixedHeight(48 * self.scale_ratio)  # 固定高度
+        self.setFixedHeight(40)  # 固定高度
         self.init_ui()
     
     def paintEvent(self, event):
@@ -48,220 +41,147 @@ class TitleBar(QWidget):
         super().paintEvent(event)
 
     def init_ui(self):
-        # 计算布局位置
-        parent_width = self.parent.width()
-        tabs_width = 455 * self.scale_ratio # 标签页区域宽度
+        # 主水平布局
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(15, 0, 15, 0)
+        main_layout.setSpacing(0)
         
-        # 标签页位置 - 居中
-        tabs_x = (parent_width - tabs_width) // 2
-        
-        # 创建标签页容器
-        self.tabs_container = QWidget(self)
-        self.tabs_container.setGeometry(tabs_x, 5 * self.scale_ratio, tabs_width, 35 * self.scale_ratio)
-        
-        # 标签页布局
-        tabs_layout = QHBoxLayout(self.tabs_container)
-        tabs_layout.setContentsMargins(0, 0, 0, 0)
-        tabs_layout.setSpacing(0)
-        
-        # app icon
-        app_icon_container = QWidget(self)
-        app_icon_layout = QHBoxLayout(app_icon_container)
-        app_icon_layout.setContentsMargins(25 * self.scale_ratio, 18 * self.scale_ratio, 25 * self.scale_ratio, 18 * self.scale_ratio)
-        app_icon_layout.setSpacing(10 * self.scale_ratio)
+        # 左侧应用图标
         app_icon_label = QLabel()
-        app_icon_label.setPixmap(self.app_icon.pixmap(60 * self.scale_ratio, 20 * self.scale_ratio))
-        app_icon_label.setVisible(True)  # 初始隐藏
-        app_icon_label.setAlignment(Qt.AlignCenter)  # 图标居中
-        app_icon_layout.addWidget(app_icon_label)
-
-        # 标签页
-        self.tabs = QTabWidget(self.tabs_container)
-        self.tabs.setContentsMargins(0, 0, 0, 0)
-        self.tabs.setFixedSize(tabs_width, 48 * self.scale_ratio)
-        self.tabs.setTabBarAutoHide(False)
-        self.tabs.setDocumentMode(True)
+        app_icon_label.setPixmap(self.app_icon.pixmap(45, 45))
+        app_icon_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(app_icon_label)
+        main_layout.addSpacing(5)  # 添加间距
         
-        # 修复白杠问题并确保字体居中
-        self.tabs.setStyleSheet(f"""
-            QTabBar {{
-                background: transparent;
-                border: none;
-                spacing: {5 * self.scale_ratio}px;  /* 标签之间的间距 */
-            }}
-            
-            QTabBar::tab {{
-                background: transparent;
-                padding: {10 * self.scale_ratio}px 0px;
-                border: none;
-            }}
-            QLabel {{
-                color: #8e8e8e;
-                text-align: center;
-            }}
-            QLabel:hover {{
-                color: #FFF;
-            }}
-            QTabBar::tab:selected {{
-                color: #ffffff !important;
-            }}
-            
-            /* 鼠标悬停高亮效果 */
-            QTabBar::tab:hover {{
-                color: #ffffff !important;
-            }}
-        """)
-
-        # 添加标签页
-        tab_names = ["启动", "联机大厅", "下载", "设置", "更多"]
-        for name in tab_names:
-            tab = QWidget()
-            self.tabs.addTab(tab, "")  # 修改这里：使用 name 作为标签文本
-            
-            # 创建标签容器 - 弹性布局
-            tab_container = QWidget()
-            tab_layout = QHBoxLayout(tab_container)
-            tab_layout.setContentsMargins(0, 0, 0, 0)
-            tab_layout.setSpacing(0)
-            
-            # 添加图标
-            icon_label = QLabel()
-            icon_label.setPixmap(self.transparent_icon.pixmap(22 * self.scale_ratio, 22 * self.scale_ratio))
-            icon_label.setVisible(True)  # 初始隐藏
-            icon_label.setStyleSheet(f"""
-                QLabel {{
-                    margin-top: -{3 * self.scale_ratio}px;
-                }}
-            """)
-            icon_label.setAlignment(Qt.AlignTop)  # 图标居中
-            tab_layout.addWidget(icon_label)
-            
-            # 添加文本 - 弹性布局
-            text_label = QLabel(name)
-            text_label.setStyleSheet(f"""
-                QLabel {{
-                    margin-right: {25 * self.scale_ratio}px;
-                }}
-            """)
-            text_label.setFont(QFont("Source Han Sans CN Heavy", 13 * self.scale_ratio))
-            text_label.setAlignment(Qt.AlignCenter)  # 文本居中
-            text_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)  # 弹性大小
-            tab_layout.addWidget(text_label)
-            
-            # 设置标签页的布局
-            self.tabs.tabBar().setTabButton(self.tabs.count()-1, QTabBar.LeftSide, tab_container)
+        # 中间标签区域 (居中显示)
+        main_layout.addStretch(1)  # 左侧拉伸
         
-        # 连接标签页切换信号
-        self.tabs.currentChanged.connect(self.on_tab_changed)
-        self.tabs.currentChanged.connect(self.parent.switch_tab)
+        self.tab_widget = QWidget()
+        tab_layout = QHBoxLayout(self.tab_widget)
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.setSpacing(20)
         
-        # 按钮位置 - 右侧
-        buttons_x = (parent_width - 75 * self.scale_ratio)# * self.scale_ratio  # 距离右侧10px
+        # 创建标签按钮
+        self.tab_buttons = []
+        for name in self.tab_names:
+            tab_button = self.create_tab_button(name)
+            self.tab_buttons.append(tab_button)
+            tab_layout.addWidget(tab_button)
         
-        # 创建按钮容器
-        self.buttons_container = QWidget(self)
-        self.buttons_container.setGeometry(buttons_x, 10 * self.scale_ratio, 70 * self.scale_ratio, 30 * self.scale_ratio)
+        main_layout.addWidget(self.tab_widget)
+        main_layout.addStretch(1)  # 右侧拉伸
         
-        # 按钮布局
-        buttons_layout = QHBoxLayout(self.buttons_container)
+        # 右侧按钮区域
+        buttons_widget = QWidget()
+        buttons_layout = QHBoxLayout(buttons_widget)
         buttons_layout.setContentsMargins(0, 0, 0, 0)
-        buttons_layout.setSpacing(5 * self.scale_ratio)
+        buttons_layout.setSpacing(8)
         
         # 最小化按钮
         self.minimize_btn = QPushButton()
-        self.minimize_btn.setFixedSize(20 * self.scale_ratio, 20 * self.scale_ratio)
-        self.minimize_btn.setStyleSheet(f"""
-            QPushButton {{
+        self.minimize_btn.setFixedSize(15, 15)
+        self.minimize_btn.setStyleSheet("""
+            QPushButton {
                 background-color: #00AA36;
                 border-radius: 0px;
-            }}
-            QPushButton:hover {{
+            }
+            QPushButton:hover {
                 background-color: #55BB6A;
-            }}
+            }
         """)
         self.minimize_btn.clicked.connect(self.parent.showMinimized)
         buttons_layout.addWidget(self.minimize_btn)
         
         # 关闭按钮
         self.close_btn = QPushButton()
-        self.close_btn.setFixedSize(20 * self.scale_ratio, 20 * self.scale_ratio)
-        self.close_btn.setStyleSheet(f"""
-            QPushButton {{
+        self.close_btn.setFixedSize(15, 15)
+        self.close_btn.setStyleSheet("""
+            QPushButton {
                 background-color: #FF0000;
                 border-radius: 0px;
-            }}
-            QPushButton:hover {{
+            }
+            QPushButton:hover {
                 background-color: #F00036;
-            }}
+            }
         """)
         self.close_btn.clicked.connect(self.parent.close)
         buttons_layout.addWidget(self.close_btn)
         
-        # 初始更新选中标签页
-        self.on_tab_changed(self.tabs.currentIndex())
-
-    def on_tab_changed(self, index):
-        """标签页切换时更新图标显示"""
-        # 隐藏所有标签页的图标
+        main_layout.addWidget(buttons_widget)
         
-        for i in range(self.tabs.count()):
-            tab_container = self.tabs.tabBar().tabButton(i, QTabBar.LeftSide)
-            if not tab_container: continue
-            layout = tab_container.layout()
-            if not layout: continue
-            icon_label = layout.itemAt(0).widget()
-            if icon_label and isinstance(icon_label, QLabel):
-                icon_label.setPixmap(self.transparent_icon.pixmap(22 * self.scale_ratio, 22 * self.scale_ratio))  # self.transparent_icon.pixmap(16, 16)
-                icon_label.setAlignment(Qt.AlignTop)  # 图标居中
-                icon_label.setVisible(True)
+        # 设置初始选中状态
+        self.set_active_tab(0)
 
-            txt_label = layout.itemAt(1).widget()
-            if txt_label and isinstance(txt_label, QLabel):
-                txt_label.setStyleSheet(f"""
-                    QLabel {{
-                        margin-top: -{3 * self.scale_ratio}px;
-                        margin-right: {25 * self.scale_ratio}px;
-                    }}
-                """)
+    def create_tab_button(self, name):
+        """创建单个标签按钮 - 水平排列图标和文本"""
+        tab_button = QWidget()
+        tab_button.setObjectName(f"tab_{name}")
+        tab_button.mousePressEvent = lambda event: self.on_tab_clicked(name)
         
-        if index >= 0 and index < self.tabs.count():
-            tab_container = self.tabs.tabBar().tabButton(index, QTabBar.LeftSide)
-            if not tab_container: return
-            layout = tab_container.layout()
-            if not layout: return
-            txt_label = layout.itemAt(1).widget()
-            if txt_label and isinstance(txt_label, QLabel):
-                txt_label.setVisible(True)
-                txt_label.setStyleSheet(f"""
-                    QLabel {{
-                        color: #FFF;
-                        margin-top: -{2 * self.scale_ratio}px;
-                        margin-right: {25 * self.scale_ratio}px;
-                    }}
-                """)
+        # 使用水平布局替代垂直布局
+        layout = QHBoxLayout(tab_button)
+        layout.setContentsMargins(5, 0, 5, 0)  # 减少左右边距使更紧凑
+        layout.setSpacing(1)  # 减少图标和文本间距
+        
+        # 图标
+        icon_label = QLabel()
+        icon_label.setPixmap(self.transparent_icon.pixmap(15, 15))  # 稍微减小图标尺寸
+        icon_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(icon_label)
+        
+        # 文本
+        text_label = QLabel(name)
+        text_label.setFont(QFont("Source Han Sans CN Heavy", 10))
+        text_label.setStyleSheet("color: #8e8e8e; margin-top: 1px; font-weight: bold;")  # 添加微小上边距使文本偏下
+        layout.addWidget(text_label)
+        
+        # 存储引用以便后续更新
+        tab_button.icon_label = icon_label
+        tab_button.text_label = text_label
+        
+        return tab_button
 
-            icon_label = layout.itemAt(0).widget()
-            if icon_label and isinstance(icon_label, QLabel):
-                icon_label.setPixmap(self.tab_icons["启动"].pixmap(22 * self.scale_ratio, 22 * self.scale_ratio))  # self.transparent_icon.pixmap(16, 16)
-                icon_label.setVisible(True)
+    def set_active_tab(self, index):
+        """设置活动标签页"""
+        for i, tab_button in enumerate(self.tab_buttons):
+            icon_label = tab_button.findChild(QLabel, "", Qt.FindDirectChildrenOnly)
+            text_label = tab_button.findChildren(QLabel)[-1] if tab_button.findChildren(QLabel) else None
+            
+            if i == index:
+                # 激活状态
+                if icon_label:
+                    icon_label.setPixmap(self.tab_icons[self.tab_names[i]].pixmap(22, 22))
+                if text_label:
+                    text_label.setStyleSheet("color: #FFFFFF;")
+            else:
+                # 非激活状态
+                if icon_label:
+                    icon_label.setPixmap(self.transparent_icon.pixmap(22, 22))
+                if text_label:
+                    text_label.setStyleSheet("color: #8e8e8e;")
 
+    def on_tab_clicked(self, name):
+        """标签点击事件处理"""
+        if name in self.tab_names:
+            index = self.tab_names.index(name)
+            self.set_active_tab(index)
+            # 调用父窗口的标签切换方法
+            if hasattr(self.parent, 'switch_tab'):
+                self.parent.switch_tab(index)
     
-    # 窗口拖动功能实现
+    # 保留原有的窗口拖动功能
     def mousePressEvent(self, event: QMouseEvent):
-        """鼠标按下事件 - 开始拖动窗口"""
         if event.button() == Qt.LeftButton:
             self.dragging = True
             self.drag_position = event.globalPosition().toPoint() - self.parent.frameGeometry().topLeft()
             event.accept()
     
     def mouseMoveEvent(self, event: QMouseEvent):
-        """鼠标移动事件 - 拖动窗口"""
         if self.dragging and event.buttons() & Qt.LeftButton:
             self.parent.move(event.globalPosition().toPoint() - self.drag_position)
             event.accept()
     
     def mouseReleaseEvent(self, event: QMouseEvent):
-        """鼠标释放事件 - 停止拖动"""
         if event.button() == Qt.LeftButton:
             self.dragging = False
             event.accept()
