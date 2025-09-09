@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QApplication
 )
 from PySide6.QtCore import QSize
-from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
 
 
 import psutil  # 需要安装：pip install psutil
@@ -103,3 +103,16 @@ def load_custom_font(HOME_PATH: str):
             QApplication.setFont(app_font)
             print(f"已设置全局字体: {i}")
 
+
+def get_system_dpi_scale() -> float:
+    """获取系统DPI缩放比例"""
+    screen = QGuiApplication.primaryScreen()
+    return screen.devicePixelRatio()  # 返回如1.5（150%）
+
+def get_physical_resolution(logical_width, logical_height):
+    """将逻辑分辨率转换为物理分辨率"""
+    dpi_scale = get_system_dpi_scale()
+    print('dpi_scale', dpi_scale)
+    physical_width = int(logical_width * dpi_scale)
+    physical_height = int(logical_height * dpi_scale)
+    return physical_width, physical_height
