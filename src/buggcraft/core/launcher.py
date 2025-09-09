@@ -103,6 +103,10 @@ class MinecraftLibLauncher(QObject):
         self.username = "Player"
         self.server = None
         self.memory = 4096
+        self.width = 854
+        self.height = 480
+        self.fullscreen = False  # 最大化
+
         self.languages = {
             "English": "en_us",
             "简体中文": "zh_cn",
@@ -119,7 +123,18 @@ class MinecraftLibLauncher(QObject):
         """设置游戏语言"""
         self.language = self.languages[language]
 
-    def set_options(self, minecraft_directory, version, uuid=None, username="Player", token=None, server=None, memory=4096):
+    def set_options(self,
+        minecraft_directory,
+        version,
+        uuid=None,
+        username="Player",
+        token=None,
+        server=None,
+        memory=4096,
+        width=854,
+        height=480,
+        fullscreen=False
+    ):
         """设置启动选项"""
         self.minecraft_directory = minecraft_directory
         self.version = version
@@ -128,6 +143,10 @@ class MinecraftLibLauncher(QObject):
         self.token = token
         self.server = server
         self.memory = memory
+        self.width = width
+        self.height = height
+        self.fullscreen = fullscreen
+        
 
     def start(self):
         """启动 Minecraft 游戏"""
@@ -157,11 +176,29 @@ class MinecraftLibLauncher(QObject):
 
             java_path = self.settings_manager.get_setting("java.path", None)
             memory = self.settings_manager.get_setting("memory.allocation", "自动选择合适的Java")
+            launch_jvm_args: str = self.settings_manager.get_setting('game.launch_jvm_args', "").split()
+            launch_args: str = self.settings_manager.get_setting('game.launch_args', "").split()
+            launch_pre_command: str = self.settings_manager.get_setting('game.launch_pre_command', "").split()
+
             print(f'[JavaRunTime] -> {java_path}')
+        
             if not java_path:
                 print('请安装Java环境')  # TODO
                 return
-
+            jvmArguments = [
+                f"-Xmx{memory}M", 
+                f"-Xms{memory}M",
+                f"-Dfile.encoding=UTF-8",
+                "-XX:+UseG1GC",
+                "-XX:-UseAdaptiveSizePolicy",
+                "-XX:-OmitStackTraceInFastThrow",
+                "-Djdk.lang.Process.allowAmbiguousCommands=true",
+                "-Dfml.ignoreInvalidMinecraftCertificates=True",
+                "-Dfml.ignorePatchDiscrepancies=True",
+                "-Dlog4j2.formatMsgNoLookups=true",
+                "-Dsun.java2d.dpiaware=true",
+                *launch_jvm_args
+            ]
             # 准备启动选项
             options = {
                 "executablePath": java_path,
@@ -169,20 +206,9 @@ class MinecraftLibLauncher(QObject):
                 "server": self.server,
                 "gameDirectory": self.minecraft_directory,
                 "version": self.version,
-                "jvmArguments": [
-                    f"-Xmx{memory}M", 
-                    f"-Xms{memory}M",
-                    f"-Dfile.encoding=UTF-8",
-                    "-XX:+UseG1GC",
-                    "-XX:-UseAdaptiveSizePolicy",
-                    "-XX:-OmitStackTraceInFastThrow",
-                    "-Djdk.lang.Process.allowAmbiguousCommands=true",
-                    "-Dfml.ignoreInvalidMinecraftCertificates=True",
-                    "-Dfml.ignorePatchDiscrepancies=True",
-                    "-Dlog4j2.formatMsgNoLookups=true"
-                ],
+                "jvmArguments": list(set(jvmArguments)),
                 "launcherName": "BuggCraft Launcher",
-                "launcherVersion": "1.0"
+                "launcherVersion": "1.0",
             }
             
             if self.uuid: options['uuid'] = self.uuid
@@ -206,12 +232,25 @@ class MinecraftLibLauncher(QObject):
             )
 
             # 获取启动命令
-            command = minecraft_launcher_lib.command.get_minecraft_command(
+            command: list[str] = minecraft_launcher_lib.command.get_minecraft_command(
                 self.version, 
                 self.minecraft_directory,
                 options
             )
+
+            # 设置窗口大小
+            if not self.fullscreen:
+                size = ['--width', str(self.width), '--height', str(self.height)]
+                if self.width is not None and self.height is not None:
+                    for i in size:
+                        command.append(i)
+            else:
+                # TODO: 当前最大化 是先开起小窗口，加载完成后最大化进入游戏菜单页面
+                command.append('--fullscreen')
             
+            for arg in launch_args:
+                command.append(arg)
+
             # 清理命令参数
             command = [arg for arg in command if arg != "None" and arg is not None]
 
@@ -230,6 +269,20 @@ class MinecraftLibLauncher(QObject):
             env['LC_ALL'] = self.language + '.UTF-8'
             env['JAVA_OPTS'] = '-Dfile.encoding=UTF-8'
 
+            try:
+                for com in launch_pre_command:
+                    subprocess.Popen(
+                        com,
+                        cwd=self.minecraft_directory,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT,
+                        stdin=subprocess.PIPE,
+                        creationflags=startup_flags,
+                        env=env
+                    )
+            except Exception as e:
+                print('[启动前指令]', e.args)
+
             self.process = subprocess.Popen(
                 command,
                 cwd=self.minecraft_directory,
@@ -239,9 +292,31 @@ class MinecraftLibLauncher(QObject):
                 creationflags=startup_flags,
                 env=env
             )
-            
             # 记录进程ID
             self.signals.output.emit(f"游戏进程PID: {self.process.pid}")
+
+            # 获取用户在你的 ComboBox 中选择的优先级文本
+            # 假设你有一个方法来获取设置，例如从你的设置管理器
+            priority_setting = self.settings_manager.get_setting("launcher.process_priority") # 例如返回 "高 (优先保证游戏运行，但可能造成其他程序卡顿)"
+
+            # 根据用户选择映射到系统的优先级值
+            # 注意：psutil 的优先级常量在不同系统上可能不同，以下是一个通用映射尝试
+            if "高" in priority_setting:
+                target_priority = psutil.HIGH_PRIORITY_CLASS if os.name == 'nt' else -10 # Windows HIGH_PRIORITY_CLASS, Unix nice -10
+            elif "低" in priority_setting:
+                target_priority = psutil.BELOW_NORMAL_PRIORITY_CLASS if os.name == 'nt' else 10 # Windows BELOW_NORMAL, Unix nice 10
+            else: # 默认或"中"
+                target_priority = psutil.NORMAL_PRIORITY_CLASS if os.name == 'nt' else 0 # Windows NORMAL, Unix nice 0
+
+            try:
+                # 创建 psutil.Process 对象
+                p = psutil.Process(self.process.pid)
+                # 设置优先级
+                p.nice(target_priority)
+                print(f"成功将 Minecraft 进程 (PID: {self.process.pid}) 优先级设置为: {priority_setting}")
+            except Exception as e:
+                print(f"设置进程优先级时出错: {e}. 进程可能已退出，或无足够权限。")
+            # 注意：在某些系统上，设置高优先级可能需要提升的权限（如管理员/root）
             
             # 启动输出处理线程
             self.output_thread = OutputHandlerThread(self.process)
