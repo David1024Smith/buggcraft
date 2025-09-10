@@ -185,12 +185,11 @@ def download_resources():
 
         extract_dir = os.path.join(HOME_DIR)
         send_notification("资源下载", NOTIFICATION_MESSAGES.get(name, "下载资源"))
-        if download_and_extract(url, download_dir, extract_dir):
-            send_notification("下载完成", f"{name}资源下载成功")
-        else:
+        if not download_and_extract(url, download_dir, extract_dir):
             send_notification("下载失败", f"{name}资源下载失败")
             return False
     
+    send_notification("下载完成", f"仅在第一次启动下载，现在，您可以玩了~")
     return True
 
 
