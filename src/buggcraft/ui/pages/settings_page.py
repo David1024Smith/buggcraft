@@ -15,23 +15,28 @@ from config.settings import get_settings_manager
 from config.javafinder import JavaPathFinder
 from core.visibility import VisibilitySettings
 
+import logging
+logger = logging.getLogger(__name__)
+
+
+
 class SettingsPage(BasePage):
     """设置页面 - 继承BasePage"""
     
     # 定义信号
     settings_changed = Signal(str, object)  # 设置改变信号，参数为设置键和值
     
-    def __init__(self, home_path, scale_ratio=1.0, parent=None):
-        super().__init__(home_path, scale_ratio, parent)
-        self.settings_manager = get_settings_manager(home_path)  # 获取配置管理器
+    def __init__(self, parent=None, config_path=None, resource_path=None, scale_ratio=1.0, ):
+        super().__init__(parent, config_path, resource_path, scale_ratio)
+        # self.settings_manager = get_settings_manager(self.parent.config_path)  # 获取配置管理器
+        
         self.init_ui()
-        # 加载设置
-        self.load_settings_to_ui()
+        self.load_settings_to_ui()  # 加载设置
         
     def init_ui(self):
         """初始化UI"""
         # 设置背景
-        self.set_background('resources/images/minecraft_bg.png')
+        self.set_background('images/minecraft_bg.png')
         
         # 创建主布局
         main_layout = QHBoxLayout(self)
@@ -121,7 +126,7 @@ class SettingsPage(BasePage):
         ######################################################
         crad_widget = QMCard(
             title="启动选项",
-            icon=os.path.join(self.home_path, "resources/icons/union@2x.png")
+            icon=os.path.join(self.resource_path, "icons/union@2x.png")
         )
         crad_widget.setBackgroundColor("#252627")
         crad_widget.setStyleSheet("""
@@ -236,7 +241,7 @@ class SettingsPage(BasePage):
         ################
         crad_game_memory_widget = QMCard(
             title="游戏内存",
-            icon=os.path.join(self.home_path, "resources/icons/union@2x.png"),
+            icon=os.path.join(self.resource_path, "icons/union@2x.png"),
             # content="这是一个Minecraft服务器，支持多种游戏模式。"
         )
         crad_game_memory_widget.setBackgroundColor("#252627")
@@ -394,7 +399,7 @@ class SettingsPage(BasePage):
         # 高级启动选项 #
         crad_advanced_options_widget = QMCard(
             title="高级启动选项",
-            icon=os.path.join(self.home_path, "resources/icons/union@2x.png")
+            icon=os.path.join(self.resource_path, "icons/union@2x.png")
         )
         crad_advanced_options_widget.setBackgroundColor("#252627")
         crad_advanced_options_widget.setStyleSheet("""
@@ -454,7 +459,7 @@ class SettingsPage(BasePage):
         # BUG调试模式 #
         # debug_widget = QMCard(
         #     title="高级启动选项",
-        #     icon=os.path.join(self.home_path, "resources/icons/union@2x.png")
+        #     icon=os.path.join(self.resource_path, "icons/union@2x.png")
         # )
         # debug_widget.setBackgroundColor("#252627")
         # debug_widget.setStyleSheet("""
@@ -602,7 +607,7 @@ class SettingsPage(BasePage):
         # 添加新的Java路径选项，并将路径设置为UserData
         java_data = []
         for java_path, version in java_installations: # 假设这是你的搜索结果
-            print(f'  -> {version} - {java_path}')
+            logger.info(f'  -> {version} - {java_path}')
             java_data.append((version, java_path))
             self.game_java_combo.addItem(java_path, java_path) # 添加Item并设置UserData  version, 
 
@@ -621,7 +626,7 @@ class SettingsPage(BasePage):
         if found_index != -1:
             self.game_java_combo.setCurrentIndex(found_index)
         else:
-            print("未找到对应的Java路径，可能需更新选项列表")
+            logger.info("未找到对应的Java路径，可能需更新选项列表")
             # 可选：设置为“自动选择”或第一个可用选项
             self.game_java_combo.setCurrentIndex(0)
 
@@ -636,7 +641,7 @@ class SettingsPage(BasePage):
     def show_message(self, title, message):
         """显示消息（实现取决于你的UI框架）"""
         # 这里可以使用QMessageBox或你的自定义弹窗
-        print(f"{title}: {message}")
+        logger.info(f"{title}: {message}")
         
 
     def on_setting_changed(self, key: str, value: Any):
@@ -648,16 +653,16 @@ class SettingsPage(BasePage):
             self.settings_manager.save_settings()
             self.settings_changed.emit(key, value)
         else:
-            print(f"保存设置失败: {key} = {value}")
+            logger.info(f"保存设置失败: {key} = {value}")
     
     def save_all_settings(self):
         """显式保存所有设置（可用于点击保存按钮时）"""
         # 这里可以添加一些验证逻辑
         success = self.settings_manager.save_settings()
         if success:
-            print("所有设置已保存")
+            logger.info("所有设置已保存")
         else:
-            print("保存设置失败")
+            logger.info("保存设置失败")
 
     def load_settings_to_ui(self):
         """将配置加载到UI控件"""
@@ -710,7 +715,7 @@ class SettingsPage(BasePage):
             # debug_mode = self.settings_manager.get_setting("debug_endble", False)
             # self.bug_debug_mode.setChecked(debug_mode)
             
-            print("配置已加载到UI")
+            logger.info("配置已加载到UI")
             
         except Exception as e:
-            print(f"加载配置到UI时出错: {e}")
+            logger.info(f"加载配置到UI时出错: {e}")

@@ -12,6 +12,10 @@ from ui.widgets.user_widget import QMWidget
 from ui.widgets.buttons import QMButton
 
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class UserPanel(QWidget):
     """用户面板 - 可折叠"""
     
@@ -19,18 +23,18 @@ class UserPanel(QWidget):
     panel_hide = Signal()  # 整体面板收起
     panel_show = Signal()  # 整体面板展开
     
-    def __init__(self, parent, HOME_PATH):
+    def __init__(self, parent, resource_path, cache_path):
         super().__init__(parent)
-        self.HOME_PATH = HOME_PATH
         self.parent = parent
-        self.is_collapsed = False
+
+        self.cache_path = cache_path
+        self.resource_path = resource_path
         self.login_index = 0  # 第几次登录
         self.background_color = QColor("#272727")
         self.backgroundColor = self.background_color
-        self.minecraft_directory = os.path.abspath(os.path.join(self.HOME_PATH, '.minecraft'))
 
         self.signals = MinecraftSignals()
-        self.auth = MicrosoftAuthenticator(minecraft_directory=self.minecraft_directory)
+        self.auth = MicrosoftAuthenticator(skins_cache_path=self.cache_path)
 
         # 连接认证信号
         self.auth.signals.success.connect(self.handle_auth_success)
@@ -53,7 +57,7 @@ class UserPanel(QWidget):
         """布局完成后保存几何信息"""
         self.original_size = self.size()
         self.original_pos = self.pos()
-        print(f"保存原始尺寸: {self.original_size}, 位置: {self.original_pos}")
+        logger.info(f"保存原始尺寸: {self.original_size}, 位置: {self.original_pos}")
 
     def paintEvent(self, event):
         """重绘事件 - 使用变量确保背景绘制"""
@@ -76,7 +80,7 @@ class UserPanel(QWidget):
         main_layout.setSpacing(0)
         
         # 用户信息区域
-        self.user = QMWidget(os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'user_info_bg.png')))
+        self.user = QMWidget(os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'user_info_bg.png')))
         main_layout.addWidget(self.user)
         
         # 用户信息内部布局
@@ -123,7 +127,7 @@ class UserPanel(QWidget):
         self.login_switch_btn = QMButton(
             text='切换账号',
             parent=self,
-            icon=os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'switch.png')),
+            icon=os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'switch.png')),
             font_size=10,
             size=(230-230/4, 44-44/4)
         )
@@ -189,9 +193,9 @@ class UserPanel(QWidget):
         
         # 设置按钮背景图片
         if text == "正版":
-            bg_image = os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'external_tab_btn_active.png'))
+            bg_image = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'external_tab_btn_active.png'))
         else:
-            bg_image = os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'offline_tab_btn_active.png'))
+            bg_image = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'offline_tab_btn_active.png'))
             
         button.setPixmap(QPixmap(bg_image).scaled(*size, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
         
@@ -214,7 +218,7 @@ class UserPanel(QWidget):
         # 正版登录按钮
         self.legal_login_btn = self.create_image_button(
             "正版授权登录", 
-            os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'legal_login_btn.png')),
+            os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'legal_login_btn.png')),
             self.authorized_online_login,
             230-230/4, 54-54/4,
             font_size=10
@@ -251,7 +255,7 @@ class UserPanel(QWidget):
         # 登录按钮
         login_btn = self.create_image_button(
             "登录",
-            os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'login_btn.png')),
+            os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'login_btn.png')),
             self.authorized_login,
             230-230/4, 45-45/4,
             font_size=10
@@ -298,12 +302,12 @@ class UserPanel(QWidget):
         """更新选项卡按钮样式"""
         if tab_name == "正版":
             btn = self.external_tab_btn
-            active_image = os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'external_tab_btn_active.png'))
-            inactive_image = os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'offline_tab_btn_active.png'))
+            active_image = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'external_tab_btn_active.png'))
+            inactive_image = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'offline_tab_btn_active.png'))
         else:
             btn = self.offline_tab_btn
-            active_image = os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'offline_tab_btn_active.png'))
-            inactive_image = os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'external_tab_btn_active.png'))
+            active_image = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'offline_tab_btn_active.png'))
+            inactive_image = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'external_tab_btn_active.png'))
         
         image_path = active_image if is_active else inactive_image
         btn.setPixmap(QPixmap(image_path).scaled(124, 48, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
@@ -331,12 +335,12 @@ class UserPanel(QWidget):
 
     def authorized_online_auto(self):
         """尝试自动登录"""
-        if self.minecraft_directory:
-            if self.auth.load_credentials(os.path.join(self.minecraft_directory)):
-                print(f"自动登录成功，欢迎 {self.auth.minecraft_username}!")
+        if self.cache_path:
+            if self.auth.load_credentials(os.path.join(self.cache_path)):
+                logger.info(f"自动登录成功，欢迎 {self.auth.minecraft_username}!")
                 return True
             else:
-                print("自动登录失败，需要重新认证")
+                logger.info("自动登录失败，需要重新认证")
                 self.signals.output.emit("自动登录失败，需要重新认证")
         
         return False
@@ -349,7 +353,7 @@ class UserPanel(QWidget):
         """登录成功 过度效果"""
         def ani_show_():
             if call: call()
-            background_path = os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'user-login-success.png'))
+            background_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'user-login-success.png'))
             self.user.background_pixmap = QPixmap(background_path)
             self.user.update()
 
@@ -390,7 +394,7 @@ class UserPanel(QWidget):
     def animations_show_user_login(self, user_hide_time=100, user_show_time=300):
         """切换账户 过度效果"""
         def ani_show_():
-            background_path = os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'user_info_bg.png'))
+            background_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'user_info_bg.png'))
             self.user.background_pixmap = QPixmap(background_path)
             self.user.update()
 
@@ -435,7 +439,7 @@ class UserPanel(QWidget):
             self.save_original_geometry()
             return  # 等待下一次调用
         
-        print(f"显示动画开始 - 原始尺寸: {self.original_size}, 位置: {self.original_pos}")
+        logger.info(f"显示动画开始 - 原始尺寸: {self.original_size}, 位置: {self.original_pos}")
         
         # 确保控件可见
         self.show()
@@ -544,7 +548,7 @@ class UserPanel(QWidget):
             self.animations_show_user_login(user_hide_time=0, user_show_time=0)
 
         self.setGraphicsEffect(None)
-        print(f"显示动画完成 - 最终尺寸: {self.size()}, 位置: {self.pos()}")
+        logger.info(f"显示动画完成 - 最终尺寸: {self.size()}, 位置: {self.pos()}")
 
     def moveEvent(self, event):
         """重写 moveEvent 以跟踪位置变化"""
@@ -567,7 +571,7 @@ class UserPanel(QWidget):
     def logout(self):
         """退出正版登录"""
         self.setBackgroundColor(self.backgroundColor)
-        self.auth.clear(os.path.join(self.minecraft_directory))
+        self.auth.clear(os.path.join(self.cache_path))
         self.avatar.clear()
         self.avatar.setStyleSheet(f"""
             QLabel {{
@@ -608,7 +612,7 @@ class UserPanel(QWidget):
         """)
         
         if not skin_avatar:
-            skin_avatar=os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'head.png'))
+            skin_avatar=os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'head.png'))
 
         self.avatar.setPixmap(QPixmap(skin_avatar).scaled(60, 60, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
         self.login_success.emit({'uuid': uuid, 'username': username, 'token': token}, login_type)
@@ -644,10 +648,9 @@ class UserPanel(QWidget):
             self.parent.user.minecraft_login_type = login_type
 
         # 保存认证信息
-        if self.minecraft_directory:
-            self.auth.save_credentials(os.path.join(self.minecraft_directory))
+        self.auth.save_credentials(os.path.join(self.cache_path))
         
-        print(f"欢迎 {username}, {login_type}, {token}!")
+        logger.info(f"欢迎 {username}, {login_type} !")
         user_hide_time, user_show_time = 100, 200
         if self.login_index == 0:
             user_hide_time, user_show_time = 0, 0
@@ -663,6 +666,7 @@ class UserPanel(QWidget):
         """处理登录失败"""
         self.signals.error.emit(f"登录失败: {message}")
         self.login_status.setText(message)
-        self.online_text.setText(f"登录失败")
-        self.logout()
+        self.login_status.setText(f"登录失败")
+        # self.logout()
+        logger.info(f'handle_auth_failure {message}')
 

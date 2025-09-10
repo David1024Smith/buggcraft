@@ -1,11 +1,9 @@
 # 辅助函数
 
 import os
-from PySide6.QtWidgets import (
-    QApplication
-)
+
 from PySide6.QtCore import QSize
-from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication
+from PySide6.QtGui import QGuiApplication
 
 
 import psutil  # 需要安装：pip install psutil
@@ -77,33 +75,6 @@ def scale_component(original_size: QSize, target_size: QSize) -> float:
     return scale_ratio
 
 
-def load_custom_font(HOME_PATH: str):
-    """加载自定义字体文件并设置为全局字体"""
-    # 字体文件路径
-    fonts = [
-        os.path.abspath(os.path.join(HOME_PATH, 'resources', 'fonts', 'ChuangKeTieJinGangTi-2.otf')),
-        os.path.abspath(os.path.join(HOME_PATH, 'resources', 'fonts', 'SourceHanSansCN-Heavy.otf')),
-        os.path.abspath(os.path.join(HOME_PATH, 'resources', 'fonts', 'SourceHanSansCN-Medium.ttf')),
-    ]
-    for font in fonts:
-        # 加载字体文件
-        font_id = QFontDatabase.addApplicationFont(font)
-        if font_id == -1:
-            print(f"无法加载字体文件: {font}")
-            return
-        
-        # 获取字体家族名称
-        font_families = QFontDatabase.applicationFontFamilies(font_id)
-        if not font_families:
-            print(f"字体文件中未找到有效的字体家族: {font}")
-            return
-        
-        for i in font_families:
-            app_font = QFont(i)
-            QApplication.setFont(app_font)
-            print(f"已设置全局字体: {i}")
-
-
 def get_system_dpi_scale() -> float:
     """获取系统DPI缩放比例"""
     screen = QGuiApplication.primaryScreen()
@@ -112,7 +83,6 @@ def get_system_dpi_scale() -> float:
 def get_physical_resolution(logical_width, logical_height):
     """将逻辑分辨率转换为物理分辨率"""
     dpi_scale = get_system_dpi_scale()
-    print('dpi_scale', dpi_scale)
     physical_width = int(logical_width * dpi_scale)
     physical_height = int(logical_height * dpi_scale)
     return physical_width, physical_height

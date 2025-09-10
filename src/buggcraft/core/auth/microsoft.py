@@ -1,15 +1,19 @@
 import time
 import json
-import requests
 import traceback
 import webbrowser
+import logging
 
 from urllib.parse import urlparse, parse_qs
 
 from PySide6.QtCore import Signal, QObject, QTimer
-# from PySide6.QtWebEngineWidgets import QWebEngineView
 
 from core.skin import process_skin_info
+
+
+
+logger = logging.getLogger(__name__)
+
 
 class MicrosoftAuthSignals(QObject):
     """Microsoft 认证信号"""
@@ -28,7 +32,6 @@ class MinecraftSignals(QObject):
 
 
 import base64
-import json
 from datetime import datetime
 
 class JWTDecoder:
@@ -134,15 +137,11 @@ class JWTDecoder:
                 return None
         return self.header
 
-    
+
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
-import webbrowser
-import requests
-import json
-import time
-from PySide6.QtCore import QObject, Signal
+from utils.network import minecraft_httpx
 
 
 class MinecraftHttpServer(HTTPServer):
@@ -201,7 +200,7 @@ class CallbackHandler(BaseHTTPRequestHandler):
             elif error:
                 # 处理错误情况
                 error_description = params.get('error_description', ['未知错误'])[0]
-                print('error_description', error_description)
+                logger.info(f'error_description {error_description}')
                 self.send_error(500, f"OAuth Error: {error}", error_description)
                 self.server.auth_error = f"{error}: {error_description}"
                 self.server.shutdown()
@@ -257,12 +256,12 @@ class AsyncAuthServer(QObject):
     def check_timeout(self):
         """检查是否超时"""
         if self.auth_code or self.auth_error:
-            print('检查是否超时1')
+            logger.info('检查是否超时1')
             self.timer.stop()
             return
             
         if time.time() - self.start_time > self.timeout:
-            print('检查是否超时2')
+            logger.info('检查是否超时2')
             self.timer.stop()
             self.timeout.emit()
             
@@ -283,10 +282,10 @@ class AsyncAuthServer(QObject):
         if self.server:
             try:
                 self.server.shutdown()
-                print('服务器关闭完成')
+                logger.info('服务器关闭完成')
             except Exception as e:
-                traceback.print_exc()
-                print(f'服务器关闭异常: {e}')
+                traceback.logger.info_exc()
+                logger.info(f'服务器关闭异常: {e}')
         
         # 清理线程
         if self.server_thread and self.server_thread.is_alive():
@@ -296,11 +295,11 @@ class AsyncAuthServer(QObject):
 class MicrosoftAuthenticator(QObject):
     """Microsoft 正版登录认证类"""
     
-    def __init__(self, parent=None, minecraft_directory=None):
+    def __init__(self, parent=None, skins_cache_path=None):
         super().__init__(parent)
         self.oauth_thread = None
         self.signals = MicrosoftAuthSignals()
-        self.minecraft_directory = minecraft_directory
+        self.skins_cache_path = skins_cache_path  # 头像save
         self.decoder = JWTDecoder()  # 创建解码器实例
 
         # OAuth 认证参数
@@ -352,7 +351,6 @@ class MicrosoftAuthenticator(QObject):
     
     def handle_auth_code(self, auth_code):
         """处理接收到的授权码"""
-        print('处理接收到的授权码', auth_code)
         self.authorization_code = auth_code
         self.signals.progress.emit("[2/9] 交换令牌...")
 
@@ -372,22 +370,21 @@ class MicrosoftAuthenticator(QObject):
                 'grant_type': 'authorization_code',
                 'redirect_uri': self.redirect_uri,
             }
-            
+
             self.signals.progress.emit("[3/9] 获取令牌...")
-            response = requests.post(url, data=data)
+            status_code, response_data = minecraft_httpx.post(url, data)
             
-            if response.status_code == 200:
-                token_data = response.json()
-                self.oauth20_token = token_data.get('access_token')
-                self.refresh_token = token_data.get('refresh_token')
+            if status_code == 200:
+                self.oauth20_token = response_data.get('access_token')
+                self.refresh_token = response_data.get('refresh_token')
                 
                 if self.oauth20_token:
                     self.get_xbox_live_token()
                 else:
                     self.signals.failure.emit("Microsoft令牌响应中缺少访问令牌")
             else:
-                print('get_oauth20_token', response.text)
-                self.signals.failure.emit(f"获取Microsoft令牌失败: HTTP {response.status_code}\n{response.text}")
+                logger.info(f"get_oauth20_token 获取Microsoft令牌失败: HTTP {status_code}\n{response_data}")
+                self.signals.failure.emit(f"获取Microsoft令牌失败: HTTP {status_code}\n{response_data}")
         except Exception as e:
             self.signals.failure.emit(f"获取Microsoft令牌时发生异常: {str(e)}")
     
@@ -410,19 +407,18 @@ class MicrosoftAuthenticator(QObject):
             }
             
             self.signals.progress.emit("[4/9] 获取令牌...")
-            response = requests.post(url, headers=headers, json=data)
+            status_code, response_data = minecraft_httpx.post(url, data, headers=headers)
             
-            if response.status_code == 200:
-                token_data = response.json()
-                self.xbox_token = token_data.get('Token')
-                self.user_hash = token_data.get('DisplayClaims', {}).get('xui', [{}])[0].get('uhs')
+            if status_code == 200:
+                self.xbox_token = response_data.get('Token')
+                self.user_hash = response_data.get('DisplayClaims', {}).get('xui', [{}])[0].get('uhs')
                 
                 if self.xbox_token and self.user_hash:
                     self.get_xsts_token()
                 else:
                     self.signals.failure.emit("Xbox Live令牌响应中缺少必要字段")
             else:
-                self.signals.failure.emit(f"获取Xbox Live令牌失败: HTTP {response.status_code}\n{response.text}")
+                self.signals.failure.emit(f"获取Xbox Live令牌失败: HTTP {status_code}\n{response_data}")
         except Exception as e:
             self.signals.failure.emit(f"获取Xbox Live令牌时发生异常: {str(e)}")
     
@@ -444,18 +440,17 @@ class MicrosoftAuthenticator(QObject):
             }
             
             self.signals.progress.emit("[5/9] 获取令牌...")
-            response = requests.post(url, headers=headers, json=data)
+            status_code, response_data = minecraft_httpx.post(url, data, headers=headers)
             
-            if response.status_code == 200:
-                token_data = response.json()
-                self.xsts_token = token_data.get('Token')
+            if status_code == 200:
+                self.xsts_token = response_data.get('Token')
                 
                 if self.xsts_token:
                     self.get_minecraft_token()
                 else:
                     self.signals.failure.emit("XSTS令牌响应中缺少令牌")
             else:
-                self.signals.failure.emit(f"获取XSTS令牌失败: HTTP {response.status_code}\n{response.text}")
+                self.signals.failure.emit(f"获取XSTS令牌失败: HTTP {status_code}\n{response_data}")
         except Exception as e:
             self.signals.failure.emit(f"获取XSTS令牌时发生异常: {str(e)}")
     
@@ -471,13 +466,11 @@ class MicrosoftAuthenticator(QObject):
             }
             
             self.signals.progress.emit("[6/9] 获取Minecraft令牌...")
-            response = requests.post(url, headers=headers, json=data)
+            status_code, response_data = minecraft_httpx.post(url, data, headers=headers)
             
-            if response.status_code == 200:
-                token_data = response.json()
-                self.minecraft_token = token_data.get('access_token')
+            if status_code == 200:
+                self.minecraft_token = response_data.get('access_token')
                 if self.minecraft_token:
-                    print(self.minecraft_token)
                     if not self.get_minecraft_mcstore():
                         return
                     
@@ -485,7 +478,7 @@ class MicrosoftAuthenticator(QObject):
                 else:
                     self.signals.failure.emit("缺少访问令牌")
             else:
-                self.signals.failure.emit(f"网络可能异常，获取Minecraft令牌失败 STATUS: {response.status_code}")
+                self.signals.failure.emit(f"网络可能异常，获取Minecraft令牌失败 STATUS: {status_code}\n{response_data}")
         except Exception as e:
             self.signals.failure.emit(f"获取Minecraft令牌时发生异常: {str(e)}")
     
@@ -499,19 +492,19 @@ class MicrosoftAuthenticator(QObject):
             }
             
             self.signals.progress.emit("[8/9] 获取玩家档案...")
-            response = requests.get(url, headers=headers)
-            if response.status_code == 404:
+            status_code, response_data = minecraft_httpx.get(url, headers=headers)
+            
+            if status_code == 404:
                 self.signals.failure.emit("玩家档案未建立，请先使用官方Minecraft启动器创建游戏名称​​")
                 return
             
-            if response.status_code == 200:
-                profile_data = response.json()
-                self.minecraft_username = profile_data.get('name')
-                self.minecraft_uuid = profile_data.get('id')
-                minecraft_skins = profile_data.get('skins', [])
-                if minecraft_skins and self.minecraft_directory:
+            if status_code == 200:
+                self.minecraft_username = response_data.get('name')
+                self.minecraft_uuid = response_data.get('id')
+                minecraft_skins = response_data.get('skins', [])
+                if minecraft_skins and self.skins_cache_path:
                     self.signals.progress.emit("[9/9] 获取玩家头像...")
-                    self.minecraft_skin = process_skin_info(uuid=self.minecraft_uuid, skin_info=minecraft_skins[0], output_path=self.minecraft_directory)
+                    self.minecraft_skin = process_skin_info(uuid=self.minecraft_uuid, skin_info=minecraft_skins[0], output_dir=self.skins_cache_path)
                 
                 if self.minecraft_username and self.minecraft_uuid:
                     self.minecraft_login_type = "online"
@@ -524,9 +517,9 @@ class MicrosoftAuthenticator(QObject):
                 else:
                     self.signals.failure.emit("玩家档案响应中缺少用户名或UUID")
             else:
-                self.signals.failure.emit(f"获取玩家档案失败: HTTP {response.status_code}\n{response.text}")
+                self.signals.failure.emit(f"获取玩家档案失败: HTTP {status_code}\n{response_data}")
         except Exception as e:
-            traceback.print_exc()
+            traceback.logger.info_exc()
             self.signals.failure.emit(f"获取玩家档案时发生异常: {str(e)}")
     
     def get_minecraft_mcstore(self):
@@ -538,11 +531,11 @@ class MicrosoftAuthenticator(QObject):
         }
         try:
             self.signals.progress.emit("[7/9] 查询正版许可...")
-            response = requests.get('https://api.minecraftservices.com/entitlements/mcstore', headers=headers)
-            if response.status_code == 200:
-                data = response.json()
+            status_code, response_data = minecraft_httpx.get('https://api.minecraftservices.com/entitlements/mcstore', headers=headers)
+            
+            if status_code == 200:
                 minecraft_signature = []
-                for i in data['items']:
+                for i in response_data['items']:
                     name = i.get('name', None)
                     if not name in ['game_minecraft', 'product_minecraft']:
                         continue
@@ -554,7 +547,7 @@ class MicrosoftAuthenticator(QObject):
                 self.minecraft_login_type = "offline"
                 self.signals.failure.emit("未购买正版")
             else:
-                self.signals.failure.emit(f"网络可能异常，获取产品许可失败 STATUS: {response.status_code}")
+                self.signals.failure.emit(f"网络可能异常，获取产品许可失败 STATUS: {status_code}")
         except Exception as e:
             self.signals.failure.emit(f"获取产品许可时发生异常: {str(e)}")
 
@@ -571,7 +564,7 @@ class MicrosoftAuthenticator(QObject):
     def save_credentials(self, filepath):
         """保存认证信息到文件"""
         import os, shutil
-        filepath = os.path.join(filepath, "user", "auth_credentials.json")
+        filepath = os.path.join(filepath, "auth_credentials.json")
         if not os.path.exists(os.path.dirname(filepath)):
             os.makedirs(os.path.dirname(filepath))
 
@@ -581,12 +574,12 @@ class MicrosoftAuthenticator(QObject):
             expiration = self.decoder.get_expiration()
             if expiration and self.minecraft_token:
                 # self.signals.progress.emit(f"Token 过期时间: {expiration['timestamp']}")
-                print(f"Token 过期时间戳: {expiration['timestamp']}")
-                print(f"Token 过期时间: {expiration['formatted']}")
+                logger.info(f"Token 过期时间戳: {expiration['timestamp']}")
+                logger.info(f"Token 过期时间: {expiration['formatted']}")
             
             # 检查是否已过期
             if self.decoder.is_expired() and expiration is not None:
-                print("⚠️  Token 已过期")
+                logger.info("⚠️  Token 已过期")
                 if os.path.isfile(filepath):
                     os.remove(filepath)
                 self.signals.failure.emit(f"Token 已过期")
@@ -606,7 +599,7 @@ class MicrosoftAuthenticator(QObject):
             return True
         except Exception as e:
             import traceback
-            traceback.print_exc()
+            traceback.logger.info_exc()
             self.signals.failure.emit(f"保存凭据失败: {str(e)}")
             return False
     
@@ -614,7 +607,7 @@ class MicrosoftAuthenticator(QObject):
         """从文件加载认证信息"""
         import os, shutil
 
-        filepath = os.path.join(filepath, "user", "auth_credentials.json")
+        filepath = os.path.join(filepath, "auth_credentials.json")
         if not os.path.exists(os.path.dirname(filepath)):
             os.makedirs(os.path.dirname(filepath))
 
@@ -629,12 +622,12 @@ class MicrosoftAuthenticator(QObject):
             self.decoder.token = credentials.get('minecraft_token')
             expiration = self.decoder.get_expiration()
             if expiration:
-                print(f"Token 过期时间戳: {expiration['timestamp']}")
-                print(f"Token 过期时间: {expiration['formatted']}")
+                logger.info(f"Token 过期时间戳: {expiration['timestamp']}")
+                logger.info(f"Token 过期时间: {expiration['formatted']}")
             
             # 检查是否已过期
             if self.decoder.is_expired() and expiration is not None:
-                print("⚠️  Token 已过期")
+                logger.info("⚠️  Token 已过期")
                 if os.path.isfile(filepath):
                     os.remove(filepath)
                 
@@ -689,7 +682,7 @@ class MicrosoftAuthenticator(QObject):
         self.minecraft_uuid = None
         self.minecraft_skin = None
 
-        filepath = os.path.join(filepath, "user", "auth_credentials.json")
+        filepath = os.path.join(filepath, "auth_credentials.json")
         if os.path.isfile(filepath):
             os.remove(filepath)
 
@@ -705,26 +698,26 @@ if __name__ == "__main__":
     # 获取过期时间
     expiration = decoder.get_expiration()
     if expiration:
-        print(f"Token 过期时间戳: {expiration['timestamp']}")
-        print(f"Token 过期时间: {expiration['formatted']}")
+        logger.info(f"Token 过期时间戳: {expiration['timestamp']}")
+        logger.info(f"Token 过期时间: {expiration['formatted']}")
         
         # 检查是否已过期
         if decoder.is_expired():
-            print("⚠️  Token 已过期")
+            logger.info("⚠️  Token 已过期")
         else:
-            print("✅  Token 仍然有效")
+            logger.info("✅  Token 仍然有效")
     
     # 获取签发时间
     issued_at = decoder.get_issued_at()
     if issued_at:
-        print(f"Token 签发时间: {issued_at['formatted']}")
+        logger.info(f"Token 签发时间: {issued_at['formatted']}")
     
     # 获取所有声明
     claims = decoder.get_all_claims()
     if claims:
-        print("\nToken 中的所有声明:")
+        logger.info("\nToken 中的所有声明:")
         for key, value in claims.items():
-            print(f"  {key}: {value}")
+            logger.info(f"  {key}: {value}")
 
 # if __name__ == "__main__":
 #     headers = {
@@ -742,4 +735,4 @@ if __name__ == "__main__":
 #             minecraft_signature.append(name)
         
 #         if 'game_minecraft' in minecraft_signature and 'product_minecraft' in minecraft_signature:
-#             print('YES')
+#             logger.info('YES')

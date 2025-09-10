@@ -5,6 +5,11 @@ import platform
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+
+import logging
+logger = logging.getLogger(__name__)
+
+
 class JavaPathFinder:
     """自动查找系统中Java安装路径的工具类"""
     
@@ -33,7 +38,7 @@ class JavaPathFinder:
             try:
                 method()
             except Exception as e:
-                print(f"方法 {method.__name__} 执行出错: {e}")
+                logger.info(f"方法 {method.__name__} 执行出错: {e}")
                 continue
         
         return self._remove_duplicates_and_validate()
@@ -241,12 +246,12 @@ if __name__ == "__main__":
     finder = JavaPathFinder()
     java_installations = finder.find_all_java_installations()
     
-    print("找到的Java安装路径:")
+    logger.info("找到的Java安装路径:")
     for i, (path, version) in enumerate(java_installations, 1):
-        print(f"{i}. {version} - {path}")
+        logger.info(f"{i}. {version} - {path}")
     
     if java_installations:
         best_java = finder.recommend_best_java(java_installations)
-        print(f"\n推荐使用的Java: {best_java}")
+        logger.info(f"\n推荐使用的Java: {best_java}")
     else:
-        print("未找到Java安装")
+        logger.info("未找到Java安装")

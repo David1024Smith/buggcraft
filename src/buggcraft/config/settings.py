@@ -3,9 +3,12 @@
 import json
 import os
 from typing import Any, Dict, Optional
-from pathlib import Path
 
-from config.javafinder import JavaPathFinder
+from utils.minecraft import find_minecraft_dirs
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 class SettingsManager:
     """
@@ -20,20 +23,52 @@ class SettingsManager:
         Args:
             config_file: 配置文件路径，如果为None则使用默认路径
         """
-        self.config_dir = os.path.join(str(Path.home()), '.buggcraft')
-        if config_path is not None:
-            self.config_dir = os.path.join(config_path)
-
-        self.config_file = os.path.join(self.config_dir, 'settings.json')
+        self.config_path = config_path
+        self.config_file = os.path.join(self.config_path, 'settings.json')
         
         # 确保配置目录存在
-        os.makedirs(self.config_dir, exist_ok=True)
+        os.makedirs(self.config_path, exist_ok=True)
         
         # 当前配置字典
         self.current_settings: Dict[str, Any] = {}
-        
+
+        # 游戏路径及版本
+        minecraft = {
+            'directory': {
+                "enable": None,
+                "installed": []
+            },
+            'version': {
+                "enable": None,
+                "installed": []
+            }
+        }
+
+        # 获取已安装版本列表
+        import minecraft_launcher_lib
+        minecraft_dirs: list = find_minecraft_dirs()
+
+        if minecraft_dirs and len(minecraft_dirs) > 0:
+            minecraft_path = minecraft_dirs[0]
+            installed_versions = minecraft_launcher_lib.utils.get_installed_versions(minecraft_path)
+            logger.info(f"在目录 {minecraft_path} 中找到 {len(installed_versions)} 个已安装版本:")
+            if installed_versions and len(installed_versions) > 0 and minecraft_path:
+                # 默认启用版本
+                minecraft_version = [i['id'] for i in installed_versions]
+                minecraft['directory']['enable'] = minecraft_path
+                minecraft['directory']['installed'] = minecraft_dirs
+                minecraft['version']['enable'] = minecraft_version[0]
+                minecraft['version']['installed'] = minecraft_version
+
+                for version in installed_versions:
+                    logger.info(f"版本ID: {version['id']}")
+                    logger.info(f"  类型: {version['type']}")
+                    logger.info(f"  发布日期: {version['releaseTime']}")
+                    logger.info("---")
+
         # 默认配置
         self.default_settings = {
+            "minecraft": minecraft,
             "launcher": {
                 "visibility": "游戏启动后保持不变",
                 "process_priority": "中 (平衡)",
@@ -79,18 +114,18 @@ class SettingsManager:
                 self.current_settings = self._deep_merge(
                     self.default_settings, loaded_settings
                 )
-                print(f"配置已从文件加载: {target_file}")
+                logger.info(f"配置已从文件加载: {target_file}")
                 return True
             else:
                 # 文件不存在，使用默认配置
                 self.current_settings = self.default_settings.copy()
-                print("未找到配置文件，使用默认配置")
+                logger.info("未找到配置文件，使用默认配置")
                 # 保存默认配置
                 self.save_settings()
                 return True
                 
         except Exception as e:
-            print(f"加载配置时出错: {e}")
+            logger.info(f"加载配置时出错: {e}")
             # 出错时使用默认配置
             self.current_settings = self.default_settings.copy()
             return False
@@ -115,10 +150,10 @@ class SettingsManager:
                     indent=4, 
                     ensure_ascii=False  # 重要：确保中文正确显示
                 )
-            print(f"配置已保存到文件: {target_file}")
+            logger.info(f"配置已保存到文件: {target_file}")
             return True
         except Exception as e:
-            print(f"保存配置时出错: {e}")
+            logger.info(f"保存配置时出错: {e}")
             return False
     
     def get_setting(self, key: str, default: Any = None) -> Any:
@@ -168,7 +203,7 @@ class SettingsManager:
             settings[keys[-1]] = value
             return True
         except Exception as e:
-            print(f"设置配置时出错: {e}")
+            logger.info(f"设置配置时出错: {e}")
             return False
     
     def reset_to_defaults(self) -> None:
@@ -214,6 +249,5 @@ def get_settings_manager(path=None) -> SettingsManager:
     """获取全局配置管理器实例（单例模式）"""
     global _settings_manager_instance
     if _settings_manager_instance is None:
-        path = os.path.join(path, 'buggcreaft')
         _settings_manager_instance = SettingsManager(path)
     return _settings_manager_instance

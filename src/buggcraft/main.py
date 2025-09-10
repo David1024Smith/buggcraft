@@ -1,50 +1,248 @@
 import os
 import sys
-# 
+import logging
+import zipfile
+from pathlib import Path
+from urllib.parse import urlparse
+
+from notifypy import Notify
+from PySide6.QtWidgets import QApplication
+
+# 自定义模块
+from utils import network
+from utils.path_helper import NuitkaPathHelper
+from utils.font_loader import load_custom_font
+from windows.main_window import MinecraftLauncher
+
+class UTF8FileHandler(logging.FileHandler):
+    """自定义文件处理器，使用 UTF-8 编码"""
+    def __init__(self, filename, mode='a', encoding=None, delay=False):
+        if encoding is None:
+            encoding = 'utf-8'
+        super().__init__(filename, mode, encoding, delay)
+
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        UTF8FileHandler('buggcraft.log', mode='w')  # 使用自定义的FileHandler
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# 全局配置
+HOME_DIR = Path.home() / '.buggcraft'
+CACHE_DIR = HOME_DIR / 'cache'
+CONFIG_DIR = HOME_DIR / 'etc'
+RESOURCE_DIR = HOME_DIR / 'resources'  # 资源目录，存放字体、图标等
+DEPENDENCIES_DIR = HOME_DIR / 'dependencies'  # 依赖目录，存放PySide6等DLL
+
+DOWNLOAD_URLS = {
+    'resources': "https://pan.erguanmingmin.com/file/10007988/resources.zip",
+    'dependencies': 'https://pan.erguanmingmin.com/file/10007988/dependencies.zip'
+}
+
+NOTIFICATION_MESSAGES = {
+    'resources': '下载字体等资源...',
+    'dependencies': '下载运行时库...',
+    'complete': '资源下载完成',
+    'error': '资源下载失败'
+}
 
 
+def setup_directories():
+    """创建必要的目录结构"""
+    for directory in [HOME_DIR, CACHE_DIR, CONFIG_DIR, RESOURCE_DIR, DEPENDENCIES_DIR]:
+        directory.mkdir(parents=True, exist_ok=True)
+        logger.info(f"初始化目录: {directory}")
 
 
-def get_resource_path():
+def download_and_extract(url, download_dir, extract_dir):
     """
-    获取资源的绝对路径，适用于开发环境和打包环境
-    
-    参数:
-        relative_path: 资源相对于项目根目录的路径，如 "images/icon.png"
-    
-    返回:
-        资源的绝对路径
+    下载并解压资源
+    :param url: 下载URL
+    :param download_dir: 下载目录
+    :param extract_dir: 解压目录
+    :return: 成功返回True，否则False
     """
     try:
-        # 打包后，Nuitka 会设置 sys._MEIPASS 属性
-        base_path = os.path.join(sys._MEIPASS, '..')
-    except:
-        # 开发环境下，使用当前文件的目录作为基础路径
-        base_path = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            '..', '..'
-        )
+        logger.info(f"开始下载: {url}")
+        data = network.download(url)
+        if not data:
+            logger.error("下载失败，无数据返回")
+            return False
+
+        # 保存ZIP文件
+        zip_name = Path(urlparse(url).path).name or "resources.zip"
+        zip_path = download_dir / zip_name
+        with open(zip_path, 'wb') as f:
+            f.write(data)
+        logger.info(f"文件保存至: {zip_path}")
+
+        # 解压
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(extract_dir)
+        logger.info(f"解压到: {extract_dir}")
+
+        # 清理：删除下载的ZIP文件
+        zip_path.unlink()
+        return True
+
+    except Exception as e:
+        logger.exception(f"下载或解压过程中出错: {e}")
+        return False
+
+
+def setup_qt_environment():
+    """设置Qt运行环境"""
+    # 设置Qt插件路径
+    qt_plugins_dir = DEPENDENCIES_DIR / 'PySide6' / 'qt-plugins'
+    os.environ['QT_PLUGIN_PATH'] = str(qt_plugins_dir)
+    logger.info(f"设置 QT_PLUGIN_PATH = {qt_plugins_dir}")
     
-    # 构建资源的绝对路径
-    return os.path.abspath(os.path.join(base_path))
+    # 设置Qt平台插件路径
+    platforms_dir = qt_plugins_dir / 'platforms'
+    os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = str(platforms_dir)
+    logger.info(f"设置 QT_QPA_PLATFORM_PLUGIN_PATH = {platforms_dir}")
+    
+    # 将依赖目录添加到DLL搜索路径
+    if hasattr(os, 'add_dll_directory'):
+        # Python 3.8+
+        for dep_dir in [DEPENDENCIES_DIR, qt_plugins_dir, platforms_dir]:
+            try:
+                os.add_dll_directory(str(dep_dir))
+                logger.info(f"添加DLL: {dep_dir}")
+            except Exception as e:
+                logger.error(f"添加DLL目录失败: {dep_dir} - {e}")
+    else:
+        # 旧版Python：添加到PATH
+        path = os.environ.get('PATH', '')
+        new_path = str(DEPENDENCIES_DIR) + os.pathsep + str(qt_plugins_dir) + os.pathsep + path
+        os.environ['PATH'] = new_path
+        logger.info(f"更新PATH环境变量以包含依赖目录")
+    
+    return verify_qt_files(qt_plugins_dir)
+
+
+def verify_qt_files(plugin_path):
+    """验证必要的Qt文件是否存在"""
+    # 检查平台插件
+    platforms_path = plugin_path / 'platforms'
+    if not platforms_path.exists():
+        logger.error(f"严重错误: 平台插件目录不存在: {platforms_path}")
+        return False
+    
+    # 检查qwindows.dll
+    qwindows_dll = platforms_path / 'qwindows.dll'
+    if not qwindows_dll.exists():
+        logger.error(f"致命错误: qwindows.dll 不存在: {qwindows_dll}")
+        return False
+    
+    # 检查其他关键DLL
+    required_dlls = [
+        plugin_path / 'imageformats' / 'qjpeg.dll',
+        plugin_path / 'styles' / 'qmodernwindowsstyle.dll'
+    ]
+    
+    missing_files = [dll for dll in required_dlls if not dll.exists()]
+    if missing_files:
+        logger.warning("缺少以下文件:")
+        for file in missing_files:
+            logger.warning(f"  - {file}")
+    
+    return True
+
+
+def send_notification(title, message, icon_path=None):
+    """
+    发送桌面通知
+    :param title: 标题
+    :param message: 消息内容
+    :param icon_path: 图标路径（可选）
+    """
+    try:
+        notification = Notify()
+        notification.title = title
+        notification.message = message
+        if icon_path and Path(icon_path).exists():
+            notification.icon = str(icon_path)
+        notification.send()
+        logger.info(f"发送通知: {title}")
+    except Exception as e:
+        logger.error(f"发送通知失败: {e}")
+
+
+def download_resources():
+    """下载并解压所有必要资源"""
+    download_dir = CACHE_DIR / 'downloads'
+    download_dir.mkdir(exist_ok=True)
+    
+    for name, url in DOWNLOAD_URLS.items():
+        extract_dir = HOME_DIR / name
+        if extract_dir.exists():
+            logger.info(f"校验资源: {extract_dir}")
+            continue
+        
+        send_notification("资源下载", NOTIFICATION_MESSAGES.get(name, "下载资源"))
+        if download_and_extract(url, download_dir, extract_dir):
+            send_notification("下载完成", f"{name}资源下载成功")
+        else:
+            send_notification("下载失败", f"{name}资源下载失败")
+            return False
+    
+    return True
+
+
+def initialize_application():
+    """初始化并运行Qt应用程序"""
+    # 设置Qt环境
+    if not setup_qt_environment():
+        logger.error("Qt环境设置失败，无法启动应用")
+        send_notification("启动失败", "Qt环境设置失败")
+        return 1
+    
+    # 创建Qt应用
+    app = QApplication(sys.argv)
+    
+    # 加载自定义字体
+    load_custom_font(RESOURCE_DIR)
+    
+    # 设置应用样式
+    app.setStyle('Fusion')
+    
+    # 创建并显示主窗口
+    launcher = MinecraftLauncher(
+        cache_path=CACHE_DIR,
+        config_path=CONFIG_DIR,
+        resource_path=RESOURCE_DIR
+    )
+    launcher.show()
+    
+    # 运行应用
+    return app.exec()
 
 
 def main():
-    RESOURCE_HOME_PATH = get_resource_path()
-    print('RESOURCE_HOME_PATH', RESOURCE_HOME_PATH)
+    """应用程序主入口"""
+    # 初始化目录结构
+    setup_directories()
+    
+    # 下载必要资源
+    if not download_resources():
+        logger.error("资源下载失败，无法继续")
+        return 1
+    
+    # 初始化并运行Qt应用
+    return initialize_application()
 
-    from PySide6.QtWidgets import QApplication
-    from utils.helpers import load_custom_font
-    from windows.main_window import MinecraftLauncher
-    
-    app = QApplication(sys.argv)
-    load_custom_font(RESOURCE_HOME_PATH)  # 加载并设置全局字体
-    app.setStyle('Fusion')  # 设置应用程序样式
-    
-    # 创建并显示启动器
-    launcher = MinecraftLauncher(RESOURCE_HOME_PATH)
-    launcher.show()
-    sys.exit(app.exec())
 
 if __name__ == "__main__":
-    main()
+    try:
+        sys.exit(main())
+    except Exception as e:
+        logger.exception("程序异常退出")
+        send_notification("程序错误", f"发生未处理的异常: {str(e)}")
+        sys.exit(1)
+

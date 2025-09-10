@@ -4,6 +4,9 @@ from PySide6.QtCore import Qt
 import os
 
 
+import logging
+logger = logging.getLogger(__name__)
+
 class QMCard(QWidget):
     """修复标题高度的自适应卡片组件"""
     
@@ -104,7 +107,7 @@ class QMCard(QWidget):
                 icon_label.setFixedSize(28, 28)  # 固定图标大小
             title_layout.addWidget(icon_label)
         elif icon:
-            print(f"图标文件不存在: {icon}")
+            logger.info(f"图标文件不存在: {icon}")
         
         # 标题文本
         title_label = QLabel(title)

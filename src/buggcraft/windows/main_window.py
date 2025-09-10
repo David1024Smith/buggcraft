@@ -2,52 +2,42 @@
 
 import os
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QStackedWidget, QVBoxLayout, QHBoxLayout, QMessageBox
+    QMainWindow, QWidget, QStackedWidget, QVBoxLayout, QHBoxLayout
 )
-from PySide6.QtCore import Qt, QTimer, QUrl, QSize
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import Qt, QTimer, QSize
 
-from utils.helpers import scale_component, get_physical_resolution
+from utils.helpers import scale_component
 from config.settings import get_settings_manager
-from core.launcher import MinecraftLibLauncher
-from core.visibility import LauncherVisibilityManager, VisibilitySettings
+# from core.launcher import MinecraftLibLauncher
+from core.visibility import LauncherVisibilityManager
 from core.auth.microsoft import MicrosoftAuthenticator
 from ui.widgets.titlebar import TitleBar
-from ui.widgets.buttons import QMStartButton
-from ui.widgets.cards import QMCard
+# from ui.widgets.buttons import QMStartButton
+# from ui.widgets.cards import QMCard
 from ui.widgets.panels import UserPanel
 from ui.pages.singleplayer_page import SinglePlayerPage
-from ui.pages.multiplayer_page import MultiplayerPage
-from ui.pages.download_page import DownloadPage
+# from ui.pages.multiplayer_page import MultiplayerPage
+# from ui.pages.download_page import DownloadPage
 from ui.pages.settings_page import SettingsPage
-from ui.pages.more_page import MorePage
+# from ui.pages.more_page import MorePage
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class MinecraftLauncher(QMainWindow):
     """主启动器界面"""
 
-    def __init__(self, HOME_PATH):
+    def __init__(self, cache_path, config_path, resource_path):
         super().__init__()
-        self.HOME_PATH = HOME_PATH
-        self.config_path = HOME_PATH
-        self.minecraft_directory = os.path.join(self.HOME_PATH, ".minecraft")
-        
-        self.settings_manager = get_settings_manager(self.HOME_PATH)  # 获取配置管理器
-        # 初始化可见性管理器
-        self.visibility_manager = LauncherVisibilityManager(self)
 
-        self.base_w = 1280-1280/3
-        self.base_h = 832-832/3
-        # 原始设计尺寸（例如1920x1080）  875  (875 - 48 + 2) * self.scale_ratio
-        # self.scale_ratio = scale_component(QSize(1280, 832), QSize(1280, 832))
-        self.scale_ratio = scale_component(QSize(1280, 832), QSize(self.base_w, self.base_h))
+        self.cache_path = cache_path
+        self.config_path = config_path
+        self.resource_path = resource_path
 
-        # 对应服务器客户端整合包是否下载
-        self.current_server = ""
-        self.current_client = False  # 游戏是否启动
-        self.current_server_download = "未下载"  # 未下载 已下载 发现更新
-        self.current_server_download_progress = 0  # 下载进度
-        self.game_mode = "singleplayer"  # 或 "multiplayer"
+        self.scale_ratio = scale_component(QSize(1280, 832), QSize(1280-1280/3, 832-832/3))
+        self.settings_manager = get_settings_manager(self.config_path)  # 获取配置管理器
+        self.visibility_manager = LauncherVisibilityManager(self)  # 初始化可见性管理器
         self.current_tab = "singleplayer"
 
         # 移除默认标题栏
@@ -74,11 +64,11 @@ class MinecraftLauncher(QMainWindow):
 
     def minecraft_handle_output(self, message):
         """处理输出"""
-        print('minecraft_handle_output', message)
+        logger.info(f'minecraft_handle_output {message}')
     
     def minecraft_handle_started(self):
         """游戏启动处理"""
-        print('minecraft_handle_started', '游戏已启动')
+        logger.info('minecraft_handle_started 游戏已启动')
         # 应用可见性设置
         self.visibility_manager.apply_setting(self.settings_manager.get_setting('launcher.visibility', "游戏启动后保持不变"))
     
@@ -94,19 +84,23 @@ class MinecraftLauncher(QMainWindow):
                 self.user_panel.login_status.setText("<font color='#4CAF50'>准备就绪</font>")
             })
 
-        print('minecraft_handle_stopped', f"游戏已退出，代码: {exit_code}")
+        logger.info(f"minecraft_handle_stopped 游戏已退出，代码: {exit_code}")
         QTimer.singleShot(5000, lambda: handle_status(exit_code))
-        # 恢复启动器（如果需要）
+        # 恢复启动器
         self.visibility_manager.restore_if_needed()
     
     def minecraft_handle_error(self, message):
         """错误处理"""
-        print('minecraft_handle_error', message)
+        logger.info(f'minecraft_handle_error {message}')
         self.visibility_manager.restore_if_needed()
     
     def minecraft_handle_progress(self, progress):
         """处理进度更新"""
-        print('minecraft_handle_progress', progress)
+        logger.info(f'minecraft_handle_progress {progress}')
+    
+    def handle_login_success(self, data, login_type):
+        """处理登录成功事件"""
+        pass
     
     # ==========================
 
@@ -119,7 +113,7 @@ class MinecraftLauncher(QMainWindow):
         main_layout.setSpacing(0)
         
         # 自定义标题栏
-        self.title_bar = TitleBar(self, HOME_PATH=self.HOME_PATH)
+        self.title_bar = TitleBar(self, resource_path=self.resource_path)
         main_layout.addWidget(self.title_bar)
         
         # 主内容区域
@@ -129,7 +123,7 @@ class MinecraftLauncher(QMainWindow):
         content_layout.setSpacing(0)
         
         # 左侧用户面板
-        self.user_panel = UserPanel(self, HOME_PATH=self.HOME_PATH)
+        self.user_panel = UserPanel(self, resource_path=self.resource_path, cache_path=self.cache_path)
         self.user_panel.login_success.connect(self.handle_login_success)
         self.user_panel.panel_hide.connect(self.user_panel.hide)
         self.user_panel.panel_show.connect(self.user_panel.show)
@@ -152,7 +146,12 @@ class MinecraftLauncher(QMainWindow):
     def create_pages(self):
         """创建所有页面"""
         # 单机页面
-        self.startedplayer_page = SinglePlayerPage(self, self.HOME_PATH, self.user.minecraft_version, self.scale_ratio)
+        self.startedplayer_page = SinglePlayerPage(
+            self,
+            config_path=self.config_path,
+            resource_path=self.resource_path,
+            scale_ratio=self.scale_ratio
+        )
         self.startedplayer_page.started_changed.connect(self.startedplayer_page.started_game)  # 启动游戏，必须在主UI中进行
 
         # 游戏日志信息回显
@@ -165,19 +164,24 @@ class MinecraftLauncher(QMainWindow):
         self.content_stack.addWidget(self.startedplayer_page)
         
         # 多人游戏页面
-        # self.multiplayer_page = MultiplayerPage(self.HOME_PATH, self.scale_ratio)
+        # self.multiplayer_page = MultiplayerPage(self.resource_path, self.scale_ratio)
         # self.content_stack.addWidget(self.multiplayer_page)
         
         # 下载页面
-        # self.download_page = DownloadPage(self.HOME_PATH, self.scale_ratio)
+        # self.download_page = DownloadPage(self.resource_path, self.scale_ratio)
         # self.content_stack.addWidget(self.download_page)
         
         # 设置页面
-        self.settings_page = SettingsPage(self.HOME_PATH, self.scale_ratio)
+        self.settings_page = SettingsPage(
+            self,
+            config_path=self.config_path,
+            resource_path=self.resource_path,
+            scale_ratio=self.scale_ratio
+        )
         self.content_stack.addWidget(self.settings_page)
         
         # 更多页面
-        # self.more_page = MorePage(self.HOME_PATH, self.scale_ratio)
+        # self.more_page = MorePage(self.resource_path, self.scale_ratio)
         # self.content_stack.addWidget(self.more_page)
 
     def switch_pages(self, index):
@@ -189,10 +193,6 @@ class MinecraftLauncher(QMainWindow):
             self.user_panel.on_show_animation_finished()
         else:
             self.user_panel.on_hide_animation_finished()
-    
-    def handle_login_success(self, data, login_type):
-        """处理登录成功事件"""
-        pass
     
     def closeEvent(self, event):
         self.settings_page.save_all_settings()  # 假设 settings_page 是 SettingsPage 实例
@@ -220,5 +220,6 @@ class MinecraftLauncher(QMainWindow):
     
     def submit_feedback(self):
         """提交反馈"""
-        QDesktopServices.openUrl(QUrl("https://github.com/minecraft-launcher/issues"))
-        QMessageBox.information(self, "提交成功", "您的反馈已提交，感谢您的支持！")
+        # QDesktopServices.openUrl(QUrl("https://github.com/minecraft-launcher/issues"))
+        # QMessageBox.information(self, "提交成功", "您的反馈已提交，感谢您的支持！")
+        pass

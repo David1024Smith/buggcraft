@@ -10,6 +10,10 @@ from PySide6.QtCore import Signal
 from .base_page import BasePage
 import os
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 class MorePage(BasePage):
     """更多页面 - 继承BasePage"""
     
@@ -24,7 +28,7 @@ class MorePage(BasePage):
     def init_ui(self):
         """初始化UI"""
         # 设置背景
-        self.set_background('resources/images/minecraft_bg.png')
+        self.set_background('images/minecraft_bg.png')
         
         # 创建主布局
         main_layout = QHBoxLayout(self)
@@ -271,7 +275,7 @@ class MorePage(BasePage):
         selected_button = self.feedback_type_group.checkedButton()
         if not selected_button:
             # 这里应该显示错误提示
-            print("请选择反馈类型")
+            logger.info("请选择反馈类型")
             return
         
         feedback_type = selected_button.text()
@@ -280,7 +284,7 @@ class MorePage(BasePage):
         
         if not description:
             # 这里应该显示错误提示
-            print("请填写问题描述")
+            logger.info("请填写问题描述")
             return
         
         # 组合反馈内容
@@ -293,7 +297,7 @@ class MorePage(BasePage):
         self.clear_feedback_form()
         
         # 这里应该显示提交成功的提示
-        print("反馈提交成功")
+        logger.info("反馈提交成功")
     
     def clear_feedback_form(self):
         """清空反馈表单"""

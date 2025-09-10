@@ -6,20 +6,21 @@ from PySide6.QtWidgets import (
 from PySide6.QtGui import QFont, QPixmap, QColor, QIcon, QPainter, QMouseEvent
 from PySide6.QtCore import Qt, QPoint, QSize
 
+
 class TitleBar(QWidget):
     """优化的自定义标题栏 - 使用布局管理器实现自适应"""
     
-    def __init__(self, parent, HOME_PATH):
+    def __init__(self, parent, resource_path):
         super().__init__(parent)
         self.parent = parent
-        self.HOME_PATH = HOME_PATH
+        self.resource_path = resource_path
         self.setObjectName("TitleBar")
         self.dragging = False
         self.drag_position = QPoint()
         
         # 图标资源
-        self.app_icon = QIcon(os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'bar', 'app.png')))
-        start_icon = QIcon(os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'bar', 'ic.png')))
+        self.app_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'app.png')))
+        start_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'ic.png')))
         
         # 标签页配置
         self.tab_icons = {
@@ -29,7 +30,7 @@ class TitleBar(QWidget):
         self.tab_names = ["启动", "设置"]
         
         # 创建透明图标（用于未选中状态）
-        self.transparent_icon = QIcon(os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'bar', 'ic_no.png')))
+        self.transparent_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'ic_no.png')))
         
         self.setFixedHeight(40)  # 固定高度
         self.init_ui()

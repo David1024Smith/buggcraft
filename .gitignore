@@ -1,3 +1,7 @@
 .minecraft
 venv
 *.pyc
+.secret
+dist*
+buggcraft
+*.log

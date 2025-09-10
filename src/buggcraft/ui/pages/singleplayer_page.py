@@ -8,17 +8,17 @@ from .base_page import BasePage
 from utils.helpers import get_physical_resolution
 from core.launcher import MinecraftLibLauncher
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class SinglePlayerPage(BasePage):
     """单机游戏页面"""
     started_changed = Signal()  # 设置改变信号，参数为设置键和值
 
-    def __init__(self, parent=None, home_path=None, minecraft_version=None, scale_ratio=1.0):
-        super().__init__(home_path, scale_ratio, parent)
-        self.parent = parent
-        self.parent.user.minecraft_version = minecraft_version  # 将在外部设置
-
-        self.minecraft_directory = self.parent.minecraft_directory
+    def __init__(self, parent=None, config_path=None, resource_path=None, scale_ratio=1.0):
+        super().__init__(parent, config_path, resource_path, scale_ratio)
+        # self.minecraft_directory = self.parent.minecraft_directory
 
         # 创建并启动游戏线程
         self.launcher = MinecraftLibLauncher(config_path=self.parent.config_path)
@@ -33,7 +33,7 @@ class SinglePlayerPage(BasePage):
     def init_ui(self):
         """初始化UI"""
         # 设置背景
-        self.set_background('resources/images/minecraft_bg.png')
+        self.set_background('images/minecraft_bg.png')
         self.setContentsMargins(0, 20, 0, 0)
         
         # 创建主布局
@@ -96,7 +96,7 @@ class SinglePlayerPage(BasePage):
                 token=self.parent.user.minecraft_token,
                 server=None,
                 version=self.parent.user.minecraft_version,
-                minecraft_directory=self.minecraft_directory,
+                # minecraft_directory=self.minecraft_directory,
                 memory=1024,
                 width=w,
                 height=h,
@@ -126,7 +126,7 @@ class SinglePlayerPage(BasePage):
             self.launch_btn.setEnabled(True)
             self.current_client = True  # 游戏启动状态：已启动
 
-        print('minecraft_handle_started', '游戏已启动')
+        logger.info('minecraft_handle_started 游戏已启动')
         QTimer.singleShot(2000, lambda: handle_status())
     
     def minecraft_handle_stopped(self, exit_code):
@@ -139,11 +139,11 @@ class SinglePlayerPage(BasePage):
             self.launch_btn.setEnabled(True)
             self.current_client = False  # 游戏启动状态：未启动
 
-        print('minecraft_handle_stopped', f"游戏已退出，代码: {exit_code}")
+        logger.info(f"minecraft_handle_stopped 游戏已退出，代码: {exit_code}")
         QTimer.singleShot(2000, lambda: handle_status(exit_code))
 
     
     def minecraft_handle_error(self, message):
         """错误处理"""
-        print('minecraft_handle_error', message)
+        logger.info(f'minecraft_handle_error {message}')
         self.minecraft_handle_stopped(1)

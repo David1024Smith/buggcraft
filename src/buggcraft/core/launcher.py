@@ -6,7 +6,9 @@ import subprocess
 import signal
 import time
 import psutil
+import logging
 import minecraft_launcher_lib
+
 from typing import List
 from urllib.parse import urlparse, parse_qs, quote
 from base64 import urlsafe_b64encode
@@ -16,6 +18,8 @@ from PySide6.QtCore import Signal, QObject, QThread
 
 from config.settings import get_settings_manager
 
+
+logger = logging.getLogger(__name__)
 
 class MinecraftSignals(QObject):
     """Minecraft 信号类"""
@@ -79,7 +83,7 @@ class StartGameThread(QThread):
         except Exception as e:
             self.error.emit(f"启动错误: {str(e)}")
             import traceback
-            traceback.print_exc()
+            traceback.logger.info_exc()
         finally:
             self.finished.emit()
 
@@ -97,9 +101,9 @@ class MinecraftLibLauncher(QObject):
         self.stopping = False
         self.output_thread = None
         self.start_thread = None
-        self.minecraft_directory = None
+        self.minecraft_directory = self.settings_manager.get_setting('minecraft.directory.enable')
         self.language = "zh_cn"  # 默认语言
-        self.version = None
+        self.version = self.settings_manager.get_setting('minecraft.version.enable')
         self.username = "Player"
         self.server = None
         self.memory = 4096
@@ -124,8 +128,8 @@ class MinecraftLibLauncher(QObject):
         self.language = self.languages[language]
 
     def set_options(self,
-        minecraft_directory,
-        version,
+        minecraft_directory=None,
+        version=None,
         uuid=None,
         username="Player",
         token=None,
@@ -135,9 +139,17 @@ class MinecraftLibLauncher(QObject):
         height=480,
         fullscreen=False
     ):
-        """设置启动选项"""
-        self.minecraft_directory = minecraft_directory
-        self.version = version
+        """设置启动选项
+        Args:
+            username (str, optional): 游戏用户名。默认为 "Player"。
+            uuid (str | None, optional): 玩家的 UUID。默认为 None。
+            token (str | None, optional): 认证令牌。默认为 None。
+            server (str | None, optional): 要连接的服务器的 IP 地址或域名。默认为 None。
+            memory (int, optional): 为游戏分配的内存大小（单位：MB）。默认为 4096。
+            width (int, optional): 游戏窗口的宽度。默认为 854。
+            height (int, optional): 游戏窗口的高度。默认为 480。
+            fullscreen (bool, optional): 是否以全屏模式启动游戏。默认为 False。
+        """
         self.uuid = uuid
         self.username = username
         self.token = token
@@ -167,6 +179,9 @@ class MinecraftLibLauncher(QObject):
     def _start_game(self):
         """在工作线程中启动游戏"""
         try:
+            self.minecraft_directory = self.settings_manager.get_setting('minecraft.directory.enable')
+            self.version = self.settings_manager.get_setting('minecraft.version.enable')
+            
             # 准备启动环境
             if not os.path.exists(self.minecraft_directory):
                 os.makedirs(self.minecraft_directory, exist_ok=True)
@@ -180,11 +195,12 @@ class MinecraftLibLauncher(QObject):
             launch_args: str = self.settings_manager.get_setting('game.launch_args', "").split()
             launch_pre_command: str = self.settings_manager.get_setting('game.launch_pre_command', "").split()
 
-            print(f'[JavaRunTime] -> {java_path}')
+            logger.info(f'[JavaRunTime] -> {java_path}')
         
             if not java_path:
-                print('请安装Java环境')  # TODO
+                logger.info('请安装Java环境')  # TODO
                 return
+            
             jvmArguments = [
                 f"-Xmx{memory}M", 
                 f"-Xms{memory}M",
@@ -199,6 +215,7 @@ class MinecraftLibLauncher(QObject):
                 "-Dsun.java2d.dpiaware=true",
                 *launch_jvm_args
             ]
+            
             # 准备启动选项
             options = {
                 "executablePath": java_path,
@@ -281,7 +298,7 @@ class MinecraftLibLauncher(QObject):
                         env=env
                     )
             except Exception as e:
-                print('[启动前指令]', e.args)
+                logger.info('[启动前指令]', e.args)
 
             self.process = subprocess.Popen(
                 command,
@@ -313,9 +330,9 @@ class MinecraftLibLauncher(QObject):
                 p = psutil.Process(self.process.pid)
                 # 设置优先级
                 p.nice(target_priority)
-                print(f"成功将 Minecraft 进程 (PID: {self.process.pid}) 优先级设置为: {priority_setting}")
+                logger.info(f"成功将 Minecraft 进程 (PID: {self.process.pid}) 优先级设置为: {priority_setting}")
             except Exception as e:
-                print(f"设置进程优先级时出错: {e}. 进程可能已退出，或无足够权限。")
+                logger.info(f"设置进程优先级时出错: {e}. 进程可能已退出，或无足够权限。")
             # 注意：在某些系统上，设置高优先级可能需要提升的权限（如管理员/root）
             
             # 启动输出处理线程
@@ -382,20 +399,20 @@ class MinecraftLibLauncher(QObject):
         """停止游戏进程及其所有子进程
         
         Args:
-            force: 是否强制终止进程。为True时跳过优雅关闭直接强制杀死进程。
+            force: 是否强制终止进程。为True时跳过关闭直接强制杀死进程。
         """
-        print(f'[Stop] 停止请求: force={force}, 当前状态: running={self.running}, stopping={self.stopping}')
+        logger.info(f'[Stop] 停止请求: force={force}, 当前状态: running={self.running}, stopping={self.stopping}')
         
         # 检查是否已在停止过程中或未运行
         if not self.running or self.stopping:
-            print('[Stop] 进程未运行或已在停止中，无需操作')
+            logger.info('[Stop] 进程未运行或已在停止中，无需操作')
             return
         
         self.stopping = True
         self.signals.output.emit("正在停止游戏...")
         
         try:
-            # 1. 首先尝试优雅终止
+            # 1. 首先尝试终止
             if not force:
                 if self._attempt_graceful_shutdown():
                     self._cleanup_after_stop()
@@ -404,11 +421,11 @@ class MinecraftLibLauncher(QObject):
             # 2. 强制终止路径
             # 获取需要终止的所有进程ID（包括子进程）
             pids_to_kill = self._get_all_process_pids()
-            print(f'[Stop] 需要终止的进程列表: {pids_to_kill}')
+            logger.info(f'[Stop] 需要终止的进程列表: {pids_to_kill}')
             
             # 首先尝试发送SIGTERM（Unix）或terminate（Windows）
             if not self._terminate_processes(pids_to_kill):
-                print('[Stop] 优雅终止失败，将进行强制终止')
+                logger.info('[Stop] 终止失败，将进行强制终止')
                 # 强制终止所有进程
                 self._kill_processes_forcefully(pids_to_kill)
             
@@ -417,12 +434,12 @@ class MinecraftLibLauncher(QObject):
             
         except Exception as e:
             error_msg = f"停止进程时发生错误: {str(e)}"
-            print(f'[Stop] {error_msg}')
+            logger.info(f'[Stop] {error_msg}')
             self.signals.error.emit(error_msg)
         finally:
             self.stopping = False
             if not self.running:
-                print('[Stop] 进程已完全停止')
+                logger.info('[Stop] 进程已完全停止')
 
 
     def _get_all_process_pids(self) -> List[int]:
@@ -442,7 +459,7 @@ class MinecraftLibLauncher(QObject):
                         for child in children:
                             pids_to_kill.append(child.pid)
                     except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        print('[Stop] 无法获取子进程信息，可能进程已退出')
+                        logger.info('[Stop] 无法获取子进程信息，可能进程已退出')
             except:
                 pass
         
@@ -450,7 +467,7 @@ class MinecraftLibLauncher(QObject):
         return list(set(pids_to_kill))
 
     def _terminate_processes(self, pids: List[int]) -> bool:
-        """尝试优雅终止所有进程，返回是否成功"""
+        """尝试终止所有进程，返回是否成功"""
         all_terminated = True
         
         for pid in pids:
@@ -460,9 +477,9 @@ class MinecraftLibLauncher(QObject):
                     proc.terminate()  # Windows: terminate()
                 else:
                     proc.send_signal(signal.SIGTERM)  # Unix: SIGTERM
-                print(f'[Stop] 已向进程 {pid} 发送终止信号')
+                logger.info(f'[Stop] 已向进程 {pid} 发送终止信号')
             except (psutil.NoSuchProcess, psutil.AccessDenied):
-                print(f'[Stop] 进程 {pid} 已退出或无访问权限')
+                logger.info(f'[Stop] 进程 {pid} 已退出或无访问权限')
                 continue
         
         # 等待进程退出
@@ -478,7 +495,7 @@ class MinecraftLibLauncher(QObject):
                     else:
                         break
                 else:
-                    print(f'[Stop] 进程 {pid} 在{timeout}秒内未退出')
+                    logger.info(f'[Stop] 进程 {pid} 在{timeout}秒内未退出')
                     all_terminated = False
             except psutil.NoSuchProcess:
                 continue
@@ -499,11 +516,11 @@ class MinecraftLibLauncher(QObject):
                             "/T",  # 终止子进程
                             "/PID", str(pid)
                         ], capture_output=True, timeout=5)
-                        print(f'[Stop] 已强制终止Windows进程 {pid}')
+                        logger.info(f'[Stop] 已强制终止Windows进程 {pid}')
                     else:
                         # Unix: 发送SIGKILL
                         os.kill(pid, signal.SIGKILL)
-                        print(f'[Stop] 已向进程 {pid} 发送SIGKILL')
+                        logger.info(f'[Stop] 已向进程 {pid} 发送SIGKILL')
                     
                     # 等待确认进程终止
                     try:
@@ -512,18 +529,18 @@ class MinecraftLibLauncher(QObject):
                         pass
                         
             except (psutil.NoSuchProcess, psutil.AccessDenied, subprocess.TimeoutExpired, Exception) as e:
-                print(f'[Stop] 强制终止进程 {pid} 时出错: {e}')
+                logger.info(f'[Stop] 强制终止进程 {pid} 时出错: {e}')
                 continue
 
     def _attempt_graceful_shutdown(self) -> bool:
-        """尝试优雅关闭进程"""
+        """尝试关闭进程"""
         try:
             # 如果有标准输入，可以尝试发送关闭命令
             if hasattr(self, 'process') and self.process and self.process.stdin:
                 try:
                     self.process.stdin.write(b'stop\n')
                     self.process.stdin.flush()
-                    print('[Stop] 已发送优雅停止命令')
+                    logger.info('[Stop] 已发送停止命令')
                     
                     # 等待一段时间看进程是否自行退出
                     for _ in range(10):  # 等待最多2秒
@@ -535,7 +552,7 @@ class MinecraftLibLauncher(QObject):
             
             return False
         except Exception as e:
-            print(f'[Stop] 优雅停止尝试失败: {e}')
+            logger.info(f'[Stop] 停止尝试失败: {e}')
             return False
 
     def _cleanup_after_stop(self) -> None:
@@ -559,14 +576,14 @@ class MinecraftLibLauncher(QObject):
                 except Exception as e:
                     pass
                 self.output_thread = None
-                print('[Stop] 输出线程已停止')
+                logger.info('[Stop] 输出线程已停止')
             except Exception as e:
-                print(f'[Stop] 停止输出线程时出错: {e}')
+                logger.info(f'[Stop] 停止输出线程时出错: {e}')
         
         # 重置状态
         self.running = False
         self.stopping = False
-        print('[Stop] 清理完成')
+        logger.info('[Stop] 清理完成')
 
 
     

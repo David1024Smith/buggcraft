@@ -22,7 +22,7 @@ class MultiplayerPage(BasePage):
     def init_ui(self):
         """初始化UI"""
         # 设置背景
-        self.set_background('resources/images/minecraft_bg.png')
+        self.set_background('images/minecraft_bg.png')
         
         # 创建主布局
         main_layout = QVBoxLayout(self)
