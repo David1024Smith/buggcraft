@@ -15,7 +15,7 @@ class QMCard(QWidget):
         icon="",
         fonts_color="#fff",
         content_spacing=15,  # 正文边距
-        background_color = QColor("rgba(37, 35, 37, 0.95)"),
+        background_color = QColor("rgba(50, 50, 50, 0.68)"),
         parent=None
     ):
         """
@@ -29,12 +29,11 @@ class QMCard(QWidget):
         super().__init__(parent)
         self.setObjectName("minecraftCard")
         self.fonts_color = fonts_color
-        self.background_color = background_color # 初始化背景颜色，默认为黑色
+        self.background_color = "background_color" # 初始化背景颜色，默认为黑色
         self.backgroundColor = self.background_color
         # 设置卡片样式
         self.setStyleSheet(f"""
             QWidget#minecraftCard {{
-                background-color: rgba(37, 35, 37, 0.95);
                 border-radius: 4px;
                 border: 1px solid #333;
                 padding: 12px;
@@ -73,7 +72,14 @@ class QMCard(QWidget):
     def paintEvent(self, event):
         """重绘事件 - 使用变量确保背景绘制"""
         painter = QPainter(self)
-        painter.fillRect(self.rect(), self.backgroundColor)  # 使用变量
+        # 创建 QColor 对象并设置透明度
+        bg_color = QColor(50, 50, 50)  # RGB 值
+        bg_color.setAlphaF(0.68)        # 设置透明度 (0.0-1.0)
+        
+        # 使用 QColor 填充矩形
+        painter.fillRect(self.rect(), bg_color)
+
+        # painter.fillRect(self.rect(), self.backgroundColor)  # 使用变量
         super().paintEvent(event)
 
     def setBackgroundColor(self, color):
@@ -90,7 +96,8 @@ class QMCard(QWidget):
         """创建标题区域（固定高度）"""
         title_widget = QWidget()
         title_widget.setFixedHeight(28)  # 固定高度24px
-        
+        title_widget.setStyleSheet("background-color: transparent;")
+
         title_layout = QHBoxLayout(title_widget)
         title_layout.setAlignment(Qt.AlignCenter)
         title_layout.setContentsMargins(0, 0, 0, 0)
@@ -99,6 +106,7 @@ class QMCard(QWidget):
         # 图标
         if icon and os.path.exists(icon):
             icon_label = QLabel()
+            icon_label.setStyleSheet("background-color: transparent;")
             pixmap = QPixmap(icon)
             if not pixmap.isNull():
                 # 设置图标大小为16x16，居中显示
@@ -116,6 +124,7 @@ class QMCard(QWidget):
                 color: #f0f0f0;
                 font-size: 15px;
                 font-weight: bold;
+                background-color: transparent;
             }
         """)
         title_layout.addWidget(title_label)
@@ -146,6 +155,7 @@ class QMCard(QWidget):
                 QLabel {
                     color: #aaa;
                     font-size: 12px;
+                    background-color: transparent;
                 }
             """)
             content_label.setWordWrap(True)

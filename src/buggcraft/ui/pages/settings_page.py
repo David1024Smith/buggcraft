@@ -6,7 +6,7 @@ from typing import Any
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QFrame, QPushButton, QStackedWidget, QLineEdit, QComboBox, QSlider,
-    QRadioButton, QButtonGroup, QScrollArea, QFormLayout
+    QRadioButton, QButtonGroup, QScrollArea, QFormLayout, QGraphicsOpacityEffect
 )
 from PySide6.QtCore import Qt, Signal
 from .base_page import BasePage
@@ -36,18 +36,21 @@ class SettingsPage(BasePage):
     def init_ui(self):
         """初始化UI"""
         # 设置背景
-        self.set_background('images/minecraft_bg.png')
+        self.set_background('settings/background.png')
         
         # 创建主布局
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
+        # opacity_effect = QGraphicsOpacityEffect()
+        # opacity_effect.setOpacity(0.7)  # 70% 不透明
+
         # 左侧导航
         nav_frame = QFrame()
         nav_frame.setFixedWidth(200)
         nav_frame.setStyleSheet("""
             QFrame {
-                background-color: #252325;
+                background-color: rgba(39, 39, 39, 0.6);
                 border-radius: 0px;
                 padding: 15px;
             }
@@ -65,7 +68,7 @@ class SettingsPage(BasePage):
             btn.setFixedHeight(40)
             btn.setStyleSheet("""
                 QPushButton {
-                    background-color: #3c3c3c;
+                    background-color: rgba(255, 152, 0, 0.6);
                     color: white;
                     border-radius: 4px;
                     text-align: left;
@@ -121,17 +124,17 @@ class SettingsPage(BasePage):
         # """)
 
         layout = QVBoxLayout(main_layout)
-        # layout.setContentsMargins(15, 15, 15, 15)
         
         ######################################################
         crad_widget = QMCard(
             title="启动选项",
             icon=os.path.join(self.resource_path, "icons/union@2x.png")
         )
-        crad_widget.setBackgroundColor("#252627")
+        crad_widget.setStyleSheet("background-color: transparent;")
+        crad_widget.setBackgroundColor("rgba(50, 50, 50, 0.68)")
+        # background-color: rgba(50, 50, 50, 0.68);
         crad_widget.setStyleSheet("""
             QWidget {
-                background-color: #252627;
                 color: #AFAFAF;
             }
         """)
@@ -247,7 +250,6 @@ class SettingsPage(BasePage):
         crad_game_memory_widget.setBackgroundColor("#252627")
         crad_game_memory_widget.setStyleSheet("""
             QWidget {
-                background-color: #252627;
                 color: #AFAFAF;
             }
         """)
@@ -404,7 +406,6 @@ class SettingsPage(BasePage):
         crad_advanced_options_widget.setBackgroundColor("#252627")
         crad_advanced_options_widget.setStyleSheet("""
             QWidget {
-                background-color: #252627;
                 color: #AFAFAF;
             }
         """)
