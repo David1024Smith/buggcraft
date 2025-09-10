@@ -483,7 +483,6 @@ class UserPanel(QWidget):
         
         # 启动动画
         self.container_animation_group.start()
-        # self.on_show_animation_finished()
         
     def animations_hide_user(self):
         """隐藏用户面板动画 - 父容器跟随收缩"""
@@ -583,7 +582,7 @@ class UserPanel(QWidget):
         self.signals.output.emit("已退出正版登录")
         self.animations_show_user_login()
         
-    def set_login_status(
+    def collcall_login(
         self,
         uuid,
         username,
@@ -593,42 +592,26 @@ class UserPanel(QWidget):
     ):
         """处理登录成功事件"""
         self.username_label.setText(username)
-        status_text = f"<font color='#4CAF50'>{'正版登录' if login_type == 'online' else '离线登录'}</font>"
-        self.login_status.setText(status_text)
+        self.login_status.setText(f"<font color='#4CAF50'>{'正版登录' if login_type == 'online' else '离线登录'}</font>")
 
         # 更新头像
-        if login_type == "online":
-            # 正版用户显示头像
-            self.avatar.setStyleSheet(f"""
-                QLabel {{
-                    background-color: #2b2b2b;
-                    border-radius: 0px;
-                    border: {2}px solid #4CAF50;
-                }}
-            """)
-            # 保存认证信息
-            if self.minecraft_directory:
-                self.auth.save_credentials(os.path.join(self.minecraft_directory))
-        else:
-            # 离线用户显示默认头像
-            self.avatar.setStyleSheet(f"""
-                QLabel {{
-                    background-color: #2b2b2b;
-                    border-radius: 0px;
-                    border: {2}px solid #2196F3;
-                }}
-            """)
+        border_color = '#4CAF50'
+        if not login_type == "online":
+            border_color = '#2196F3'
+
+        self.avatar.setStyleSheet(f"""
+            QLabel {{
+                background-color: #2b2b2b;
+                border-radius: 0px;
+                border: 2px solid {border_color};
+            }}
+        """)
         
         if not skin_avatar:
             skin_avatar=os.path.abspath(os.path.join(self.HOME_PATH, 'resources', 'images', 'user', 'head.png'))
 
         self.avatar.setPixmap(QPixmap(skin_avatar).scaled(60, 60, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
-        # 通知主窗口
-        self.login_success.emit({
-            'uuid': uuid,
-            'username': username,
-            'token': token
-        }, login_type)
+        self.login_success.emit({'uuid': uuid, 'username': username, 'token': token}, login_type)
 
     def is_expired_token(self):
         # 定时验证token有效性
@@ -645,19 +628,20 @@ class UserPanel(QWidget):
         """处理登录成功"""
         uuid = data.get('uuid')
         token = data.get('token')
+        login_type = data.get('type')
         skin_avatar = data.get('skin')
         self.signals.output.emit(f"欢迎 {username}! 认证成功")
 
-        login_type = "online"
-        if not token:
-            self.auth.minecraft_uuid = None
-            self.auth.minecraft_username = username
-            self.auth.minecraft_token = None
-            self.auth.minecraft_skin = None
-            login_type = "offline"
-        else:
+        if login_type == "online":
             # 正版时 定时验证token有效性
             QTimer.singleShot(5000, lambda: self.is_expired_token())
+        else:
+            self.parent.user.minecraft_uuid = uuid
+            self.parent.user.minecraft_username = username
+            self.parent.user.refresh_token = None
+            self.parent.user.minecraft_token = None
+            self.parent.user.minecraft_skin = skin_avatar
+            self.parent.user.minecraft_login_type = login_type
 
         # 保存认证信息
         if self.minecraft_directory:
@@ -669,7 +653,7 @@ class UserPanel(QWidget):
             user_hide_time, user_show_time = 0, 0
 
         self.animations_show_user_info(
-            call=lambda: self.set_login_status(uuid, username, token, login_type, skin_avatar),
+            call=lambda: self.collcall_login(uuid, username, token, login_type, skin_avatar),
             user_hide_time=user_hide_time,
             user_show_time=user_show_time
         )
@@ -680,4 +664,5 @@ class UserPanel(QWidget):
         self.signals.error.emit(f"登录失败: {message}")
         self.login_status.setText(message)
         self.online_text.setText(f"登录失败")
+        self.logout()
 

@@ -166,8 +166,8 @@ class TitleBar(QWidget):
             index = self.tab_names.index(name)
             self.set_active_tab(index)
             # 调用父窗口的标签切换方法
-            if hasattr(self.parent, 'switch_tab'):
-                self.parent.switch_tab(index)
+            if hasattr(self.parent, 'switch_pages'):
+                self.parent.switch_pages(index)
     
     # 保留原有的窗口拖动功能
     def mousePressEvent(self, event: QMouseEvent):

@@ -325,10 +325,14 @@ class MicrosoftAuthenticator(QObject):
         self.user_hash = None
         self.xbox_token = None
         self.xsts_token = None
-        self.minecraft_token = None
-        self.minecraft_username = None
+        
         self.minecraft_uuid = None
+        self.minecraft_username = None
+        self.minecraft_token = None
+        self.minecraft_version = '1.21.8-Forge_58.1.0-OptiFine_J6_pre16'
         self.minecraft_skin = None
+        self.minecraft_login_type = "offline"
+        
 
     def start_login(self):
         """启动登录流程（使用系统浏览器和本地服务器）"""
@@ -510,10 +514,12 @@ class MicrosoftAuthenticator(QObject):
                     self.minecraft_skin = process_skin_info(uuid=self.minecraft_uuid, skin_info=minecraft_skins[0], output_path=self.minecraft_directory)
                 
                 if self.minecraft_username and self.minecraft_uuid:
+                    self.minecraft_login_type = "online"
                     self.signals.success.emit(self.minecraft_username, {
                         'uuid': self.minecraft_uuid,
                         'skin': self.minecraft_skin,
-                        'token': self.minecraft_token
+                        'token': self.minecraft_token,
+                        'type': self.minecraft_login_type
                     })
                 else:
                     self.signals.failure.emit("玩家档案响应中缺少用户名或UUID")
@@ -545,6 +551,7 @@ class MicrosoftAuthenticator(QObject):
                 if 'game_minecraft' in minecraft_signature and 'product_minecraft' in minecraft_signature:
                     return True
                 
+                self.minecraft_login_type = "offline"
                 self.signals.failure.emit("未购买正版")
             else:
                 self.signals.failure.emit(f"网络可能异常，获取产品许可失败 STATUS: {response.status_code}")
@@ -641,17 +648,21 @@ class MicrosoftAuthenticator(QObject):
             self.minecraft_token = credentials.get('minecraft_token')
             if self.minecraft_username and self.minecraft_uuid and self.minecraft_token:
                 # 正版登录
+                self.minecraft_login_type = "online"
                 self.signals.success.emit(self.minecraft_username, {
                     'uuid': self.minecraft_uuid,
                     'skin': self.minecraft_skin,
-                    'token': self.minecraft_token
+                    'token': self.minecraft_token,
+                    'type': self.minecraft_login_type
                 })
             elif self.minecraft_username and not self.minecraft_token:
                 # 离线登录
+                self.minecraft_login_type = "offline"
                 self.signals.success.emit(self.minecraft_username, {
                     'uuid': self.minecraft_uuid,
                     'skin': self.minecraft_skin,
-                    'token': None
+                    'token': None,
+                    'type': self.minecraft_login_type
                 })
 
             return True
@@ -665,8 +676,8 @@ class MicrosoftAuthenticator(QObject):
     
     def clear(self, filepath=None):
         """清空认证信息"""
-        import os, shutil
-        filepath = os.path.join(filepath, "user", "auth_credentials.json")
+        import os
+        
         self.authorization_code = None
         self.microsoft_token = None
         self.refresh_token = None
@@ -678,6 +689,7 @@ class MicrosoftAuthenticator(QObject):
         self.minecraft_uuid = None
         self.minecraft_skin = None
 
+        filepath = os.path.join(filepath, "user", "auth_credentials.json")
         if os.path.isfile(filepath):
             os.remove(filepath)
 

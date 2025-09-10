@@ -707,8 +707,8 @@ class SettingsPage(BasePage):
                 self.high_perf_java_no.setChecked(True)
 
             # 调试模式
-            debug_mode = self.settings_manager.get_setting("debug_endble", False)
-            self.bug_debug_mode.setChecked(debug_mode)
+            # debug_mode = self.settings_manager.get_setting("debug_endble", False)
+            # self.bug_debug_mode.setChecked(debug_mode)
             
             print("配置已加载到UI")
             
