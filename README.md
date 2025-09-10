@@ -3,13 +3,13 @@
 [![AGPLv3 License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Community License](https://img.shields.io/badge/License-Community%20Initiative-ff69b4.svg)](./COMMUNITY_LICENSE.md)
 ![Static Badge](https://img.shields.io/badge/platforms-Windows%7CMacOS%7CLinux-red)
-[![GitHub last commit](https://img.shields.io/github/last-commit/vdjango/buggcreaft)](https://github.com/vdjango/buggcreaft/commits/main)
-[![GitHub issues](https://img.shields.io/github/issues/vdjango/buggcreaft)](https://github.com/vdjango/buggcreaft/issues)
-[![GitHub Stars](https://img.shields.io/github/stars/vdjango/buggcreaft?style=social)](https://github.com/vdjango/buggcreaft)
+[![GitHub last commit](https://img.shields.io/github/last-commit/vdjango/buggcraft)](https://github.com/vdjango/buggcraft/commits/main)
+[![GitHub issues](https://img.shields.io/github/issues/vdjango/buggcraft)](https://github.com/vdjango/buggcraft/issues)
+[![GitHub Stars](https://img.shields.io/github/stars/vdjango/buggcraft?style=social)](https://github.com/vdjango/buggcraft)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![GitHub release](https://img.shields.io/github/v/release/vdjango/buggcreaft)](https://github.com/vdjango/buggcreaft/releases)
+[![GitHub release](https://img.shields.io/github/v/release/vdjango/buggcraft)](https://github.com/vdjango/buggcraft/releases)
 
-**Buggcreaft Launcher 启动器，我们的目标是提供一个全新的选择**。​​ 我们希望在强大功能的基础上，**在​​设计美学、联机体验、开源理念​​上做出特色**，为那些看重这些特质的玩家和贡献者提供一个 “由热爱驱动” 的家园。我们相信，游戏体验应从启动那一刻就充满愉悦与期待，因此决心构建一款**​​免费、开放、以用户体验 为核心​​的 Minecraft Launcher 启动器**
+**buggcraft Launcher 启动器，我们的目标是提供一个全新的选择**。​​ 我们希望在强大功能的基础上，**在​​设计美学、联机体验、开源理念​​上做出特色**，为那些看重这些特质的玩家和贡献者提供一个 “由热爱驱动” 的家园。我们相信，游戏体验应从启动那一刻就充满愉悦与期待，因此决心构建一款**​​免费、开放、以用户体验 为核心​​的 Minecraft Launcher 启动器**
 
 ![](docs/images/1.png)
 ![](docs/images/2.png)
@@ -27,6 +27,10 @@
 
 > “尽管现有启动器提供了强大的功能，但我们发现玩家在无缝联机、​​视觉体验​​等方面仍有更深层的期待。本项目旨在弥补这些缺口，致力于打造一款设计符合我的世界、联机便捷、并以开源社区为核心的全新启动器。我们尊重所有为Minecraft社区做出贡献的项目，并希望以我们的方式，为这个生态增添一份独特的选择。”
 
+## 🚀 关于体积优化
+
+在采用 Python 与 PySide6 进行开发时，通常生成的可执行文件体积较为庞大（初始打包体积达 300MB），其中包含 Python 解释器、Qt 框架库以及各种依赖项。我们通过一系列**​​深入的优化策略**​​​，成功将最终分发体积压缩至约 **13.6 MB (14,309,888 字节)** 显著提升了**分发效率和用户体验**。
+
 
 ## ✨ 特性概览
 
@@ -39,12 +43,12 @@
 | |第三方外置登录|待开发| |
 | |角色切换|完成|2025-09-07|
 |🎮 游戏核心​|游戏启动|完成|2025-09-06|
-| ​|全局设置|🚧 开发中|-|
+| ​|全局设置|完成|2025-09-10|
 | ​|多版本管理|待开发| |
 | |版本隔离设置|待开发| |
 |📚 程序页面布局|游戏启动页|完成|2025-09-06|
 | ​|Mini版启动器|待开发|-|
-| |游戏全局设置|🚧 开发中|-|
+| |游戏全局设置|🚧 待优化|2025-09-10|
 | ​|多版本管理|待开发| |
 | |版本隔离设置|待开发| |
 |🌐 联机功能​|局域网游戏发现|待开发| |
@@ -60,6 +64,12 @@
 | |版本隔离设置|待设计| |
 | |下载|🚧 设计中|-|
 | |更多|完成|2025-09-07|
+|⚙️ 性能与优化​|体积优化 (200MB+ → ~13MB)​|完成|2025-09-11|
+| |轻量级网络库 (替代requests)​|完成|2025-09-11|
+| |PySide6/Qt模块化裁剪​|完成|2025-09-11|
+| |资源文件压缩​|完成|2025-09-11|
+| |资源文件及库文件托管下载与动态加载​|完成|2025-09-11|
+| |日志记录|完成|2025-09-11|
 
 ## 📖 详细功能说明
 
@@ -115,8 +125,8 @@
 1. ⏱️ 克隆项目​​:
 
 ```bash
-git clone get@github.com:vdjango/buggcreaft.git
-cd buggcreaft
+git clone get@github.com:vdjango/buggcraft.git
+cd buggcraft
 ```
 
 2. ​🧑‍💻 ​安装依赖​​:

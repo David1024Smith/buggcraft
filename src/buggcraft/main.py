@@ -1,18 +1,9 @@
 import os
 import sys
 import logging
-import zipfile
+
 from pathlib import Path
-from urllib.parse import urlparse
 
-from notifypy import Notify
-from PySide6.QtWidgets import QApplication
-
-# 自定义模块
-from utils import network
-from utils.path_helper import NuitkaPathHelper
-from utils.font_loader import load_custom_font
-from windows.main_window import MinecraftLauncher
 
 class UTF8FileHandler(logging.FileHandler):
     """自定义文件处理器，使用 UTF-8 编码"""
@@ -52,11 +43,11 @@ NOTIFICATION_MESSAGES = {
 }
 
 
-def setup_directories():
-    """创建必要的目录结构"""
-    for directory in [HOME_DIR, CACHE_DIR, CONFIG_DIR, RESOURCE_DIR, DEPENDENCIES_DIR]:
-        directory.mkdir(parents=True, exist_ok=True)
-        logger.info(f"初始化目录: {directory}")
+# def setup_directories():
+#     """创建必要的目录结构"""
+#     for directory in [HOME_DIR, CACHE_DIR, CONFIG_DIR, RESOURCE_DIR, DEPENDENCIES_DIR]:
+#         directory.mkdir(parents=True, exist_ok=True)
+#         logger.info(f"初始化目录: {directory}")
 
 
 def download_and_extract(url, download_dir, extract_dir):
@@ -67,16 +58,21 @@ def download_and_extract(url, download_dir, extract_dir):
     :param extract_dir: 解压目录
     :return: 成功返回True，否则False
     """
+    import zipfile
+    from utils.network import minecraft_httpx, urlparse
+    os.makedirs(download_dir, exist_ok=True)
+    os.makedirs(extract_dir, exist_ok=True)
+
     try:
         logger.info(f"开始下载: {url}")
-        data = network.download(url)
+        data = minecraft_httpx.download(url)
         if not data:
             logger.error("下载失败，无数据返回")
             return False
 
         # 保存ZIP文件
         zip_name = Path(urlparse(url).path).name or "resources.zip"
-        zip_path = download_dir / zip_name
+        zip_path = os.path.join(download_dir, zip_name)
         with open(zip_path, 'wb') as f:
             f.write(data)
         logger.info(f"文件保存至: {zip_path}")
@@ -87,7 +83,7 @@ def download_and_extract(url, download_dir, extract_dir):
         logger.info(f"解压到: {extract_dir}")
 
         # 清理：删除下载的ZIP文件
-        zip_path.unlink()
+        os.remove(zip_path)
         return True
 
     except Exception as e:
@@ -162,29 +158,32 @@ def send_notification(title, message, icon_path=None):
     :param message: 消息内容
     :param icon_path: 图标路径（可选）
     """
+    from notifypy import Notify
+    icon_path = os.path.abspath(os.path.join(RESOURCE_DIR, "icons/app.ico"))
     try:
         notification = Notify()
         notification.title = title
         notification.message = message
+        notification.application_name='BUGG'
+        print('icon_path', icon_path)
         if icon_path and Path(icon_path).exists():
             notification.icon = str(icon_path)
         notification.send()
-        logger.info(f"发送通知: {title}")
     except Exception as e:
         logger.error(f"发送通知失败: {e}")
 
 
 def download_resources():
     """下载并解压所有必要资源"""
-    download_dir = CACHE_DIR / 'downloads'
-    download_dir.mkdir(exist_ok=True)
+    download_dir = os.path.join(CACHE_DIR, 'downloads')
     
     for name, url in DOWNLOAD_URLS.items():
-        extract_dir = HOME_DIR / name
-        if extract_dir.exists():
-            logger.info(f"校验资源: {extract_dir}")
-            continue
         
+        if os.path.exists(os.path.join(HOME_DIR, name)):
+            logger.info(f"校验资源: {os.path.join(HOME_DIR, name)}")
+            continue
+
+        extract_dir = os.path.join(HOME_DIR)
         send_notification("资源下载", NOTIFICATION_MESSAGES.get(name, "下载资源"))
         if download_and_extract(url, download_dir, extract_dir):
             send_notification("下载完成", f"{name}资源下载成功")
@@ -203,6 +202,10 @@ def initialize_application():
         send_notification("启动失败", "Qt环境设置失败")
         return 1
     
+    from PySide6.QtWidgets import QApplication
+    from windows.main_window import MinecraftLauncher
+    from utils.font_loader import load_custom_font
+
     # 创建Qt应用
     app = QApplication(sys.argv)
     
@@ -227,7 +230,7 @@ def initialize_application():
 def main():
     """应用程序主入口"""
     # 初始化目录结构
-    setup_directories()
+    # setup_directories()
     
     # 下载必要资源
     if not download_resources():
