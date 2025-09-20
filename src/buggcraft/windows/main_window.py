@@ -1,10 +1,14 @@
 # 主窗口
 
 import os
+import logging
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QStackedWidget, QVBoxLayout, QHBoxLayout
 )
 from PySide6.QtCore import Qt, QTimer, QSize
+from PySide6.QtGui import QPixmap, QPainter
+
+logger = logging.getLogger(__name__)
 
 from utils.helpers import scale_component
 from config.settings import get_settings_manager
@@ -39,28 +43,99 @@ class MinecraftLauncher(QMainWindow):
         self.settings_manager = get_settings_manager(self.config_path)  # 获取配置管理器
         self.visibility_manager = LauncherVisibilityManager(self)  # 初始化可见性管理器
         self.current_tab = "singleplayer"
+        
+        # 设置背景图片
+        self.bg_image = None
+        self.load_background_image()
 
         # 移除默认标题栏
         self.setWindowFlag(Qt.FramelessWindowHint)
-        self.setFixedWidth(1280 * self.scale_ratio)
-        self.setFixedHeight(832 * self.scale_ratio)
+        # 根据背景图片尺寸设置窗口大小
+        self.set_window_size_from_background()
 
         self.init_ui()
 
-    def on_resize(self, event):
+    def load_background_image(self):
+        """加载背景图片"""
+        bg_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'minecraft_bg.png'))
+        if os.path.exists(bg_path):
+            self.bg_image = QPixmap(bg_path)
+            logger.info(f"主窗口背景图片加载成功: {bg_path}")
+            logger.info(f"背景图片尺寸: {self.bg_image.width()}x{self.bg_image.height()}")
+        else:
+            logger.error(f"主窗口背景图片不存在: {bg_path}")
+
+    def set_window_size_from_background(self):
+        """根据背景图片尺寸设置窗口大小"""
+        if self.bg_image and not self.bg_image.isNull():
+            # 使用背景图片的实际尺寸
+            bg_width = self.bg_image.width()
+            bg_height = self.bg_image.height()
+            self.setFixedWidth(bg_width)
+            self.setFixedHeight(bg_height)
+            logger.info(f"窗口大小已调整为背景图片尺寸: {bg_width}x{bg_height}")
+        else:
+            # 如果背景图片加载失败，使用默认尺寸
+            default_width = int(1280 * self.scale_ratio)
+            default_height = int(832 * self.scale_ratio)
+            self.setFixedWidth(default_width)
+            self.setFixedHeight(default_height)
+            logger.warning(f"背景图片未加载，使用默认窗口尺寸: {default_width}x{default_height}")
+
+    def paintEvent(self, event):
+        """重绘事件 - 绘制背景图片"""
+        if self.bg_image:
+            painter = QPainter(self)
+            # 直接绘制原始尺寸的背景图片，不进行缩放
+            painter.drawPixmap(0, 0, self.bg_image)
+        super().paintEvent(event)
+
+    def integrate_start_game_button(self):
+        """将启动游戏按钮集成到登录信息组件中"""
+        if hasattr(self, 'startedplayer_page') and hasattr(self.startedplayer_page, 'launch_btn'):
+            # 获取启动按钮的引用
+            start_btn = self.startedplayer_page.launch_btn
+            
+            if start_btn.parent():
+                start_btn.setParent(None)
+            
+            # 将按钮添加到登录信息组件的容器中
+            self.user_panel.start_game_btn = start_btn
+            self.user_panel.start_game_layout.addWidget(start_btn, 0, Qt.AlignCenter)
+            
+            # 连接启动信号到单人游戏页面的启动方法
+            start_btn.clicked.disconnect()  # 断开原有连接
+            start_btn.clicked.connect(self.startedplayer_page.started_game)
+            
+            logger.info("启动游戏按钮已集成到登录信息组件中")
+    
+    def position_login_info(self):
+        """将登录信息组件定位 水平中央"""
+        if hasattr(self.user_panel, 'login_info_widget'):
+            # 获取主窗口尺寸
+            window_width = self.width()
+            window_height = self.height()
+            
+            # 获取登录信息组件尺寸
+            widget_width = self.user_panel.login_info_widget.width()
+            widget_height = self.user_panel.login_info_widget.height()
+            
+            window_width = self.width()
+            x = (window_width - widget_width) // 2 + 100
+            y = (window_height - widget_height) // 2 
+            
+            # 设置父组件为主窗口的中央组件
+            self.user_panel.login_info_widget.setParent(self.centralWidget())
+            self.user_panel.login_info_widget.move(x, y)
+            self.user_panel.login_info_widget.show()
+            
+
+    def resizeEvent(self, event):
         """窗口大小改变事件处理"""
-        # 获取当前窗口大小
-        current_size = self.central_widget.size()
-        
-        # 缩放组件
-        scale_component(
-            self.original_size, 
-            current_size, 
-            self.image_label
-        )
-        
-        # 调用基类方法
         super().resizeEvent(event)
+        # 定位登录信息组件
+        if hasattr(self, 'user_panel'):
+            self.position_login_info()
 
     def minecraft_handle_output(self, message):
         """处理输出"""
@@ -137,6 +212,12 @@ class MinecraftLauncher(QMainWindow):
         # 添加页面
         self.create_pages()
         main_layout.addWidget(content_widget)
+        
+        # 将启动游戏按钮集成到登录信息组件中
+        self.integrate_start_game_button()
+        
+        # 将登录信息组件移动到右侧水平中央
+        QTimer.singleShot(100, self.position_login_info)
     
     @property
     def user(self) -> MicrosoftAuthenticator:
