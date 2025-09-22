@@ -28,10 +28,16 @@ class TitleBar(QWidget):
         }
         self.tab_names = ["开始", "设置"]
         
+        # 版本按钮配置
+        self.version_buttons = ["版本选择", "版本设置"]
+        
+        # 控制按钮配置
+        self.control_buttons = ["最小化", "关闭"]
+        
         # 创建透明图标 
         self.transparent_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'ic_no.png')))
         
-        self.setFixedHeight(40)  # 固定高度
+        self.setFixedHeight(55)  # 固定高度，确保按钮不被裁切
         self.init_ui()
     
     def paintEvent(self, event):
@@ -43,65 +49,68 @@ class TitleBar(QWidget):
     def init_ui(self):
         # 主水平布局
         main_layout = QHBoxLayout(self)
-        main_layout.setContentsMargins(15, 0, 15, 0)
+        main_layout.setContentsMargins(22, -5, 15, 0)
         main_layout.setSpacing(0)
         
-         
-        # 中间标签区域  
-        main_layout.addStretch(1)  # 左侧拉伸
+        # 左侧拉伸，将所有按钮推到右侧
+        main_layout.addStretch(1)
         
-        self.tab_widget = QWidget()
-        tab_layout = QHBoxLayout(self.tab_widget)
-        tab_layout.setContentsMargins(0, 0, 0, 0)
-        tab_layout.setSpacing(0)
-        
-        # 创建标签按钮
+        # 为开始和设置按钮创建独立容器
         self.tab_buttons = []
-        for name in self.tab_names:
+        
+        # 创建标签按钮容器
+        tab_container = QWidget()
+        tab_container.setFixedSize(250, 50)  # 设置容器大小
+        tab_container.setStyleSheet("background: transparent;")   
+        
+        # 创建开始和设置按钮
+        for i, name in enumerate(self.tab_names):
             tab_button = self.create_tab_button(name)
             self.tab_buttons.append(tab_button)
-            tab_layout.addWidget(tab_button)
+            
+            # 设置按钮的父容器
+            tab_button.setParent(tab_container)
+            
+            
+            if i == 0:  # 开始按钮
+                tab_button.move(0, -8)   
+            else:  # 设置按钮
+                tab_button.move(124, -8)   
         
-        main_layout.addWidget(self.tab_widget)
-        main_layout.addStretch(1)  # 右侧拉伸
+        # 将容器添加到主布局
+        main_layout.addWidget(tab_container)
         
-        # 右侧按钮区域
-        buttons_widget = QWidget()
-        buttons_layout = QHBoxLayout(buttons_widget)
-        buttons_layout.setContentsMargins(0, 0, 0, 0)
-        buttons_layout.setSpacing(8)
+        # 标签按钮和版本按钮之间的间距
+        main_layout.addSpacing(5)
         
-        # 最小化按钮
-        self.minimize_btn = QPushButton()
-        self.minimize_btn.setFixedSize(15, 15)
-        self.minimize_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #00AA36;
-                border-radius: 0px;
-            }
-            QPushButton:hover {
-                background-color: #55BB6A;
-            }
-        """)
-        self.minimize_btn.clicked.connect(self.parent.showMinimized)
-        buttons_layout.addWidget(self.minimize_btn)
+        # 创建版本按钮（版本选择、版本设置）
+        self.version_btn_list = []
         
-        # 关闭按钮
-        self.close_btn = QPushButton()
-        self.close_btn.setFixedSize(15, 15)
-        self.close_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #FF0000;
-                border-radius: 0px;
-            }
-            QPushButton:hover {
-                background-color: #F00036;
-            }
-        """)
-        self.close_btn.clicked.connect(self.parent.close)
-        buttons_layout.addWidget(self.close_btn)
+        # 创建版本选择按钮
+        version_selection_btn = self.create_version_selection_button()
+        self.version_btn_list.append(version_selection_btn)
+        main_layout.addWidget(version_selection_btn)
         
-        main_layout.addWidget(buttons_widget)
+        # 版本按钮之间的间距
+        main_layout.addSpacing(5)
+        
+        # 创建版本设置按钮
+        version_settings_btn = self.create_version_settings_button()
+        self.version_btn_list.append(version_settings_btn)
+        main_layout.addWidget(version_settings_btn)
+        
+        # 版本按钮和控制按钮之间的间距
+        main_layout.addSpacing(5)
+        
+        # 创建控制按钮（最小化、关闭）
+        self.control_btn_list = []
+        for i, name in enumerate(self.control_buttons):
+            control_btn = self.create_control_button(name)
+            self.control_btn_list.append(control_btn)
+            main_layout.addWidget(control_btn)
+            # 控制按钮之间添加小间距
+            if i < len(self.control_buttons) - 1:
+                main_layout.addSpacing(5)
         
         # 设置初始选中状态
         self.set_active_tab(0)
@@ -117,13 +126,13 @@ class TitleBar(QWidget):
         tab_button.setFont(QFont("Source Han Sans CN Heavy", 10))
         tab_button.setAlignment(Qt.AlignCenter)   
         
-        # 设置初始样式 
+        # 设置初始样式
         tab_button.setStyleSheet("""
             QLabel {
                 color: #8e8e8e;
                 font-weight: bold;
                 background: transparent;
-                 padding-left: 15px;
+                padding-left: 15px;
                 padding-top: 5px;
             }
         """)
@@ -132,6 +141,159 @@ class TitleBar(QWidget):
         tab_button.setFixedSize(123, 45)
         
         return tab_button
+
+    def create_version_selection_button(self):
+        """创建版本选择按钮 - 使用version_selection_background.png背景图片"""
+        version_btn = QLabel()
+        version_btn.setObjectName("version_版本选择")
+        version_btn.mousePressEvent = lambda event: self.on_version_clicked("版本选择")
+        
+        # 设置按钮文字
+        version_btn.setText("版本选择")
+        version_btn.setFont(QFont("Source Han Sans CN Heavy", 10))
+        version_btn.setAlignment(Qt.AlignCenter)
+        
+        # 设置按钮尺寸（190x33像素）
+        version_btn.setFixedSize(190, 33)
+        
+        # 设置背景图片
+        bg_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'version_selection_background.png'))
+        if os.path.exists(bg_path):
+            bg_path_url = bg_path.replace('\\', '/')
+            version_btn.setStyleSheet(f"""
+                QLabel {{
+                    color: #FFFFFF;
+                    font-weight: bold;
+                    background-image: url({bg_path_url});
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    text-align: center;
+                    qproperty-alignment: AlignCenter;
+                    padding-top: 0px;
+                    padding-bottom: 4px;
+                }}
+            """)
+        else:
+            # 如果图片不存在，使用默认样式
+            version_btn.setStyleSheet("""
+                QLabel {
+                    color: #FFFFFF;
+                    font-weight: bold;
+                    background-color: rgba(64, 64, 64, 0.8);
+                    border: 1px solid #888;
+                    text-align: center;
+                    qproperty-alignment: AlignCenter;
+                    padding-top: 0px;
+                    padding-bottom: 4px;
+                }
+            """)
+        
+        return version_btn
+
+    def create_version_settings_button(self):
+        """创建版本设置按钮 - 使用version_settings_background.png背景图片"""
+        version_btn = QLabel()
+        version_btn.setObjectName("version_版本设置")
+        version_btn.mousePressEvent = lambda event: self.on_version_clicked("版本设置")
+        
+        # 设置按钮文字
+        version_btn.setText("版本设置")
+        version_btn.setFont(QFont("Source Han Sans CN Heavy", 10))
+        version_btn.setAlignment(Qt.AlignCenter)
+        
+        # 设置按钮尺寸（128x33像素）
+        version_btn.setFixedSize(128, 33)
+        
+        # 设置背景图片
+        bg_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'version_settings_background.png'))
+        if os.path.exists(bg_path):
+            bg_path_url = bg_path.replace('\\', '/')
+            version_btn.setStyleSheet(f"""
+                QLabel {{
+                    color: #FFFFFF;
+                    font-weight: bold;
+                    background-image: url({bg_path_url});
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    text-align: center;
+                    qproperty-alignment: AlignCenter;
+                    padding-top: 0px;
+                    padding-bottom: 4px;
+                }}
+            """)
+        else:
+            # 如果图片不存在，使用默认样式
+            version_btn.setStyleSheet("""
+                QLabel {
+                    color: #FFFFFF;
+                    font-weight: bold;
+                    background-color: rgba(64, 64, 64, 0.8);
+                    border: 1px solid #888;
+                    text-align: center;
+                    qproperty-alignment: AlignCenter;
+                    padding-top: 0px;
+                    padding-bottom: 4px;
+                }
+            """)
+        
+        return version_btn
+
+    def create_control_button(self, name):
+        """创建控制按钮 - 使用min.png和close.png背景图片"""
+        control_btn = QPushButton()
+        control_btn.setObjectName(f"control_{name}")
+        
+        # 设置按钮尺寸（30x33像素）
+        control_btn.setFixedSize(30, 33)
+        
+        # 根据按钮名称设置背景图片和功能
+        if name == "最小化":
+            bg_image = "min.png"
+            control_btn.clicked.connect(self.parent.showMinimized)
+        elif name == "关闭":
+            bg_image = "close.png"
+            control_btn.clicked.connect(self.parent.close)
+        else:
+            bg_image = "min.png"  # 默认使用最小化图片
+        
+        bg_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', bg_image))
+        if os.path.exists(bg_path):
+            bg_path_url = bg_path.replace('\\', '/')
+            control_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-image: url({bg_path_url});
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    border: none;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(255, 255, 255, 0.1);
+                }}
+            """)
+        else:
+            # 如果图片不存在，使用默认样式
+            if name == "最小化":
+                control_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #00AA36;
+                        border-radius: 0px;
+                    }
+                    QPushButton:hover {
+                        background-color: #55BB6A;
+                    }
+                """)
+            else:  # 关闭按钮
+                control_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #FF0000;
+                        border-radius: 0px;
+                    }
+                    QPushButton:hover {
+                        background-color: #F00036;
+                    }
+                """)
+        
+        return control_btn
 
     def set_active_tab(self, index):
         """设置活动标签页"""
@@ -170,6 +332,15 @@ class TitleBar(QWidget):
             # 调用父窗口的标签切换方法
             if hasattr(self.parent, 'switch_pages'):
                 self.parent.switch_pages(index)
+    
+    def on_version_clicked(self, name):
+        """版本按钮点击事件处理"""
+        if name == "版本选择":
+            # TODO: 实现版本选择功能
+            print(f"点击了{name}按钮")
+        elif name == "版本设置":
+            # TODO: 实现版本设置功能
+            print(f"点击了{name}按钮")
     
     # 保留原有的窗口拖动功能
     def mousePressEvent(self, event: QMouseEvent):
