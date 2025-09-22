@@ -19,17 +19,16 @@ class TitleBar(QWidget):
         self.drag_position = QPoint()
         
         # 图标资源
-        self.app_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'app.png')))
         start_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'ic.png')))
         
         # 标签页配置
         self.tab_icons = {
-            "启动": start_icon,
+            "开始": start_icon,
             "设置": start_icon
         }
-        self.tab_names = ["启动", "设置"]
+        self.tab_names = ["开始", "设置"]
         
-        # 创建透明图标（用于未选中状态）
+        # 创建透明图标 
         self.transparent_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'ic_no.png')))
         
         self.setFixedHeight(40)  # 固定高度
@@ -38,7 +37,7 @@ class TitleBar(QWidget):
     def paintEvent(self, event):
         """重绘事件 - 确保背景绘制"""
         painter = QPainter(self)
-        painter.fillRect(self.rect(), QColor("#2b2b2b"))
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 0))   
         super().paintEvent(event)
 
     def init_ui(self):
@@ -47,20 +46,14 @@ class TitleBar(QWidget):
         main_layout.setContentsMargins(15, 0, 15, 0)
         main_layout.setSpacing(0)
         
-        # 左侧应用图标
-        app_icon_label = QLabel()
-        app_icon_label.setPixmap(self.app_icon.pixmap(45, 45))
-        app_icon_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(app_icon_label)
-        main_layout.addSpacing(5)  # 添加间距
-        
-        # 中间标签区域 (居中显示)
+         
+        # 中间标签区域  
         main_layout.addStretch(1)  # 左侧拉伸
         
         self.tab_widget = QWidget()
         tab_layout = QHBoxLayout(self.tab_widget)
         tab_layout.setContentsMargins(0, 0, 0, 0)
-        tab_layout.setSpacing(20)
+        tab_layout.setSpacing(0)
         
         # 创建标签按钮
         self.tab_buttons = []
@@ -114,52 +107,60 @@ class TitleBar(QWidget):
         self.set_active_tab(0)
 
     def create_tab_button(self, name):
-        """创建单个标签按钮 - 水平排列图标和文本"""
-        tab_button = QWidget()
+        """创建单个标签按钮 - 使用背景图片和居中文字"""
+        tab_button = QLabel()
         tab_button.setObjectName(f"tab_{name}")
         tab_button.mousePressEvent = lambda event: self.on_tab_clicked(name)
         
-        # 使用水平布局替代垂直布局
-        layout = QHBoxLayout(tab_button)
-        layout.setContentsMargins(5, 0, 5, 0)  # 减少左右边距使更紧凑
-        layout.setSpacing(1)  # 减少图标和文本间距
+        # 设置按钮文字
+        tab_button.setText(name)
+        tab_button.setFont(QFont("Source Han Sans CN Heavy", 10))
+        tab_button.setAlignment(Qt.AlignCenter)   
         
-        # 图标
-        icon_label = QLabel()
-        icon_label.setPixmap(self.transparent_icon.pixmap(15, 15))  # 稍微减小图标尺寸
-        icon_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(icon_label)
+        # 设置初始样式 
+        tab_button.setStyleSheet("""
+            QLabel {
+                color: #8e8e8e;
+                font-weight: bold;
+                background: transparent;
+                 padding-left: 15px;
+                padding-top: 5px;
+            }
+        """)
         
-        # 文本
-        text_label = QLabel(name)
-        text_label.setFont(QFont("Source Han Sans CN Heavy", 10))
-        text_label.setStyleSheet("color: #8e8e8e; margin-top: 1px; font-weight: bold;")  # 添加微小上边距使文本偏下
-        layout.addWidget(text_label)
-        
-        # 存储引用以便后续更新
-        tab_button.icon_label = icon_label
-        tab_button.text_label = text_label
+        # 设置  背景图片
+        tab_button.setFixedSize(123, 45)
         
         return tab_button
 
     def set_active_tab(self, index):
         """设置活动标签页"""
         for i, tab_button in enumerate(self.tab_buttons):
-            icon_label = tab_button.findChild(QLabel, "", Qt.FindDirectChildrenOnly)
-            text_label = tab_button.findChildren(QLabel)[-1] if tab_button.findChildren(QLabel) else None
-            
             if i == index:
-                # 激活状态
-                if icon_label:
-                    icon_label.setPixmap(self.tab_icons[self.tab_names[i]].pixmap(22, 22))
-                if text_label:
-                    text_label.setStyleSheet("color: #FFFFFF;")
+                # 激活状态 - 设置ic.png作为背景图片
+                bg_path = str(self.resource_path / 'images' / 'bar' / 'ic.png').replace('\\', '/')
+                tab_button.setStyleSheet(f"""
+                    QLabel {{
+                        color: #FFFFFF;
+                        font-weight: bold;
+                        background-image: url({bg_path});
+                        background-repeat: no-repeat;
+                        background-position: center;
+                        padding-left: 15px;
+                        padding-top: 5px;
+                    }}
+                """)
             else:
-                # 非激活状态
-                if icon_label:
-                    icon_label.setPixmap(self.transparent_icon.pixmap(22, 22))
-                if text_label:
-                    text_label.setStyleSheet("color: #8e8e8e;")
+                # 非激活状态 - 透明背景
+                tab_button.setStyleSheet("""
+                    QLabel {
+                        color: #8e8e8e;
+                        font-weight: bold;
+                        background: transparent;
+                        padding-left: 15px;
+                        padding-top: 5px;
+                    }
+                """)
 
     def on_tab_clicked(self, name):
         """标签点击事件处理"""

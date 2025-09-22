@@ -3,7 +3,7 @@
 import os
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QHBoxLayout)
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QFont, QPixmap, QPainter, QPalette
 
 
 class QMButton(QLabel):
@@ -151,29 +151,42 @@ class QMStartButton(QWidget):
     
     clicked = Signal()  # 点击信号
     
-    def __init__(self, line1="开始游戏", line2="游戏版本号", parent=None, scale_ratio=1):
+    def __init__(self, line1="开始游戏", line2="游戏版本号", parent=None, scale_ratio=1, resource_path=None):
         super().__init__(parent)
         self.scale_ratio = scale_ratio
-        # 创建主布局
+        self.resource_path = resource_path
+        
+        # 加载背景图片
+        self.bg_pixmap = None
+        self.load_background_image()
+        
+        # 设置按钮背景图片
+        self.setFixedSize(int(350 * self.scale_ratio), int(100 * self.scale_ratio))
+        
+        # 创建主布局 - 设置为无边距 居中
         self.main_layout = QVBoxLayout(self)
+        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        self.main_layout.setSpacing(0)
 
-        # 创建文本容器
+        # 创建文本容器  
         self.text_container = QWidget()
-        self.text_container.setFixedSize(326 * self.scale_ratio, 73 * self.scale_ratio)
+
+        self.text_container.setFixedSize(int(350 * self.scale_ratio), int(100 * self.scale_ratio))
         self.text_layout = QVBoxLayout(self.text_container)
-        self.text_layout.setContentsMargins(0, 20 * self.scale_ratio, 0, 10 * self.scale_ratio)  # 文本容器内部边距为0
-        self.text_layout.setSpacing(0)  # 文本行间距初始为0
+        self.text_layout.setContentsMargins(0, 0, 0, 0)   
+        self.text_layout.setSpacing(int(5 * self.scale_ratio))  
         
         # 第一行文本标签
         self.line1_label = QLabel(line1)
         self.line1_label.setAlignment(Qt.AlignCenter)
         self.line1_label.setStyleSheet(f"""
             QLabel {{
-                color: #f2f2f2;
-                font-size: {22 * self.scale_ratio}px;
+                color: #6D6FFE;
+                font-size: {int(23 * self.scale_ratio)}px;
                 font-weight: bold;
                 margin: 0;
                 padding: 0;
+                background: transparent;
             }}
         """)
         
@@ -182,16 +195,21 @@ class QMStartButton(QWidget):
         self.line2_label.setAlignment(Qt.AlignCenter)
         self.line2_label.setStyleSheet(f"""
             QLabel {{
-                color: #e8e7e7;
-                font-size: {13 * self.scale_ratio}px;
+                color: #6D6FFE;
+                font-size: {int(11 * self.scale_ratio)}px;
                 margin: 0;
                 padding: 0;
+                background: transparent;
             }}
         """)
         
-        # 添加文本标签到文本容器
+        # 垂直居中
+        self.text_layout.addStretch(1)
         self.text_layout.addWidget(self.line1_label)
         self.text_layout.addWidget(self.line2_label)
+        self.text_layout.addStretch(1)
+        
+        # 将文本容器添加到主布局， 居中
         self.main_layout.addWidget(self.text_container, 0, Qt.AlignCenter)
         
         # 设置按钮样式
@@ -200,22 +218,51 @@ class QMStartButton(QWidget):
         # 设置光标
         self.setCursor(Qt.PointingHandCursor)
     
+    def load_background_image(self):
+        """加载背景图片"""
+        if self.resource_path:
+            bg_image_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'start_game_btn.png'))
+        if os.path.exists(bg_image_path):
+            self.bg_pixmap = QPixmap(bg_image_path)
+            if self.bg_pixmap and not self.bg_pixmap.isNull():
+                target_width = int(350 * self.scale_ratio)  
+                target_height = int(100 * self.scale_ratio)  
+                self.bg_pixmap = self.bg_pixmap.scaled(
+                    target_width, target_height, 
+                    Qt.KeepAspectRatio, 
+                    Qt.SmoothTransformation
+                )
+    
+    def paintEvent(self, event):
+        """绘制背景图片"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        if self.bg_pixmap and not self.bg_pixmap.isNull():
+            # 计算居中位置
+            x = (self.width() - self.bg_pixmap.width()) // 2
+            y = (self.height() - self.bg_pixmap.height()) // 2
+            painter.drawPixmap(x, y, self.bg_pixmap)
+        
+        super().paintEvent(event)
+    
     def set_start_style(self):
         """启动游戏样式"""
         self.setStyleSheet(f"""
             QWidget {{
-                background-color: #FF9800;
-                border-radius: {4 * self.scale_ratio}px;
+                background: transparent;
+                border-radius: {int(4 * self.scale_ratio)}px;
                 margin: 0;
                 padding: 0;
             }}
         """)
     
     def set_start_tab_style(self):
+        """启动标签样式"""
         self.setStyleSheet(f"""
             QWidget {{
-                background-color: #66BB6A;
-                border-radius: {4 * self.scale_ratio}px;
+                background: transparent;
+                border-radius: {int(4 * self.scale_ratio)}px;
                 margin: 0;
                 padding: 0;
             }}
@@ -226,7 +273,7 @@ class QMStartButton(QWidget):
         self.setStyleSheet(f"""
             QWidget {{
                 background-color: #F44800;
-                border-radius: {4 * self.scale_ratio}px;
+                border-radius: {int(4 * self.scale_ratio)}px;
                 margin: 0;
                 padding: 0;
             }}
@@ -255,7 +302,7 @@ class QMStartButton(QWidget):
         self.text_container.setGeometry(
             0,  # x坐标
             top_offset,  # y坐标
-            240 * self.scale_ratio,  # 宽度
+            int(480 * self.scale_ratio),  # 宽度 
             container_height  # 高度
         )
     

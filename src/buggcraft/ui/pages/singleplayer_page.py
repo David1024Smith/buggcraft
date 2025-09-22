@@ -32,8 +32,8 @@ class SinglePlayerPage(BasePage):
         
     def init_ui(self):
         """初始化UI"""
-        # 设置背景
-        self.set_background('images/minecraft_bg.png')
+        # 背景由主窗口统一处理，页面设置为透明
+        self.setStyleSheet("background: transparent;")
         self.setContentsMargins(0, 20, 0, 0)
         
         # 创建主布局
@@ -48,16 +48,16 @@ class SinglePlayerPage(BasePage):
         # 添加一个弹簧将内容推到底部
         content_layout.addStretch(1)
         
+        # 创建启动按钮
+        self.launch_btn = QMStartButton(scale_ratio=self.scale_ratio, resource_path=self.resource_path)
+        version_text = f"游戏版本号 {self.parent.user.minecraft_version}" if self.parent.user.minecraft_version else "游戏版本号"
+        self.launch_btn.set_texts('启动游戏', version_text)
+        self.launch_btn.clicked.connect(self.started_changed.emit)
+        
         # 添加半透明遮罩层，使文字更易读
         overlay = QWidget()
         overlay_layout = QVBoxLayout(overlay)
         overlay_layout.setContentsMargins(20, 20, 20, 20)
-        
-        # 创建启动按钮
-        self.launch_btn = QMStartButton(scale_ratio=self.scale_ratio)
-        self.launch_btn.set_texts('启动游戏', self.parent.user.minecraft_version)
-        self.launch_btn.clicked.connect(self.started_changed.emit)
-        overlay_layout.addWidget(self.launch_btn, 0, Qt.AlignCenter)
         
         content_layout.addWidget(overlay)
         
@@ -114,14 +114,16 @@ class SinglePlayerPage(BasePage):
         """设置Minecraft版本"""
         self.parent.user.minecraft_version = version
         if self.launch_btn:
-            self.launch_btn.set_texts('启动游戏', version)
+            version_text = f"游戏版本号 {version}" if version else "游戏版本号"
+            self.launch_btn.set_texts('启动游戏', version_text)
     
     def minecraft_handle_started(self):
         """游戏启动处理"""
         from PySide6.QtCore import QTimer
 
         def handle_status():
-            self.launch_btn.set_texts(f"停止游戏", self.parent.user.minecraft_version)
+            version_text = f"游戏版本号 {self.parent.user.minecraft_version}" if self.parent.user.minecraft_version else "游戏版本号"
+            self.launch_btn.set_texts(f"停止游戏", version_text)
             self.launch_btn.set_stop_style()
             self.launch_btn.setEnabled(True)
             self.current_client = True  # 游戏启动状态：已启动
@@ -134,7 +136,8 @@ class SinglePlayerPage(BasePage):
         from PySide6.QtCore import QTimer
 
         def handle_status(code):
-            self.launch_btn.set_texts("启动游戏", self.parent.user.minecraft_version)
+            version_text = f"游戏版本号 {self.parent.user.minecraft_version}" if self.parent.user.minecraft_version else "游戏版本号"
+            self.launch_btn.set_texts("启动游戏", version_text)
             self.launch_btn.set_start_style()
             self.launch_btn.setEnabled(True)
             self.current_client = False  # 游戏启动状态：未启动
