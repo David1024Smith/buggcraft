@@ -99,9 +99,23 @@ class MinecraftLauncher(QMainWindow):
             if start_btn.parent():
                 start_btn.setParent(None)
             
-            # 将按钮添加到登录信息组件的容器中
+            # 将按钮添加到登录信息组件的布局中
             self.user_panel.start_game_btn = start_btn
-            self.user_panel.start_game_layout.addWidget(start_btn, 0, Qt.AlignCenter)
+            login_info_layout = self.user_panel.login_info_widget.layout()
+            
+            multiplayer_btn_index = -1
+            for i in range(login_info_layout.count()):
+                item = login_info_layout.itemAt(i)
+                if item and item.widget() == self.user_panel.multiplayer_lobby_btn:
+                    multiplayer_btn_index = i
+                    break
+            
+            if multiplayer_btn_index >= 0:
+                # 在进入联机大厅按钮之前插入启动游戏按钮
+                login_info_layout.insertWidget(multiplayer_btn_index, start_btn, 0, Qt.AlignCenter)
+            else:
+                # 如果找不到进入联机大厅按钮，就添加到最后
+                login_info_layout.addWidget(start_btn, 0, Qt.AlignCenter)
             
             # 连接启动信号到单人游戏页面的启动方法
             start_btn.clicked.disconnect()  # 断开原有连接

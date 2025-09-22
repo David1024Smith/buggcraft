@@ -2,7 +2,7 @@
 
 import os
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QGraphicsOpacityEffect
+    QWidget, QLabel, QLineEdit, QVBoxLayout, QHBoxLayout, QGraphicsOpacityEffect, QMessageBox
 )
 from PySide6.QtCore import Qt, Signal, QSize, QEasingCurve, QPropertyAnimation, QPoint, QRect, QParallelAnimationGroup, QTimer
 from PySide6.QtGui import QFont, QPixmap, QColor, QPainter
@@ -85,7 +85,7 @@ class UserPanel(QWidget):
         
         # 创建 登录信息组件
         self.login_info_widget = QWidget()
-        self.login_info_widget.setFixedSize(400, 450)   
+        self.login_info_widget.setFixedSize(400, 480)   
         login_info_layout = QVBoxLayout(self.login_info_widget)
         login_info_layout.setContentsMargins(0, 0, 0, 0)
         login_info_layout.setSpacing(0)
@@ -112,7 +112,7 @@ class UserPanel(QWidget):
         self.avatar.setStyleSheet("""
             QLabel {
                 background-color: #2b2b2b;
-                border: 1px solid #ffffff;
+                border: none;
             }
         """)
         # 设置默认头像
@@ -129,9 +129,9 @@ class UserPanel(QWidget):
         
         # 用户名标签
         self.username_label = QLabel("未登录")
-        self.username_label.setFont(QFont("Source Han Sans CN Heavy", 12))
+        self.username_label.setFont(QFont("Source Han Sans CN Heavy", 8))
         self.username_label.setAlignment(Qt.AlignCenter)
-        self.username_label.setStyleSheet("font-weight: bold; color: #f8f8f8;")
+        self.username_label.setStyleSheet(" color: #f8f8f8;")
 
         # 创建正版登录按钮 
         self.legal_login_btn = self.create_image_button(
@@ -145,22 +145,26 @@ class UserPanel(QWidget):
         # 创建启动游戏按钮 
         self.start_game_btn = None
         
-        # 将组件添加到登录信息组件
-        login_info_layout.addWidget(self.minecraft_logo, 0, Qt.AlignCenter)
-        login_info_layout.addSpacing(20)   
-        login_info_layout.addWidget(self.avatar, 0, Qt.AlignCenter)
-        login_info_layout.addSpacing(10)
-        login_info_layout.addWidget(self.username_label, 0, Qt.AlignCenter)
-        login_info_layout.addSpacing(50)  
-        login_info_layout.addWidget(self.legal_login_btn, 0, Qt.AlignCenter)
-        login_info_layout.addSpacing(30)   
+        # 创建启动游戏按钮 
+        self.start_game_btn = None
         
-        # 启动游戏按钮容器
-        self.start_game_container = QWidget()
-        self.start_game_layout = QVBoxLayout(self.start_game_container)
-        self.start_game_layout.setContentsMargins(0, 0, 0, 0)
-        self.start_game_layout.setAlignment(Qt.AlignCenter)
-        login_info_layout.addWidget(self.start_game_container, 0, Qt.AlignCenter)
+        # 创建进入联机大厅按钮
+        self.multiplayer_lobby_btn = QLabel("进入联机大厅")
+        self.multiplayer_lobby_btn.setFont(QFont("Source Han Sans CN Heavy", 8))
+        self.multiplayer_lobby_btn.setAlignment(Qt.AlignCenter)
+        self.multiplayer_lobby_btn.setStyleSheet("""
+            QLabel {
+                color: #BFD5F3;
+                background-color: transparent;
+                text-decoration: underline;
+                font-weight: bold;
+            }
+            QLabel:hover {
+                color: #7859FF;
+            }
+        """)
+        self.multiplayer_lobby_btn.mousePressEvent = lambda event: self.show_multiplayer_dialog()
+        self.multiplayer_lobby_btn.setCursor(Qt.PointingHandCursor)
         
         # 登录状态标签 
         self.login_status = QLabel("请选择登录方式")
@@ -172,6 +176,18 @@ class UserPanel(QWidget):
         user_layout.addStretch()
         user_layout.addWidget(self.login_status, 0, Qt.AlignCenter)
         user_layout.addSpacing(15)
+        
+        # 将组件添加到登录信息组件
+        login_info_layout.addSpacing(40)  
+        login_info_layout.addWidget(self.minecraft_logo, 0, Qt.AlignCenter)
+        login_info_layout.addSpacing(40)   
+        login_info_layout.addWidget(self.avatar, 0, Qt.AlignCenter)
+        login_info_layout.addSpacing(10)
+        login_info_layout.addWidget(self.username_label, 0, Qt.AlignCenter)
+        login_info_layout.addSpacing(50)  
+        login_info_layout.addWidget(self.legal_login_btn, 0, Qt.AlignCenter)
+        login_info_layout.addSpacing(20)
+        login_info_layout.addWidget(self.multiplayer_lobby_btn, 0, Qt.AlignCenter)
         
         # 登录账户上下文（登录后显示）
         self.login_account_context = QWidget()
@@ -613,6 +629,29 @@ class UserPanel(QWidget):
 
         self.avatar.setPixmap(QPixmap(skin_avatar).scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
         self.login_success.emit({'uuid': uuid, 'username': username, 'token': token}, login_type)
+        
+        # 登录成功后进入联机大厅按钮保持显示
+
+    def show_multiplayer_dialog(self):
+        """显示进入联机大厅的对话框"""
+        msg_box = QMessageBox(self)
+        msg_box.setWindowTitle("联机大厅")
+        msg_box.setText("你点击了进入联机大厅的按钮")
+        msg_box.setStandardButtons(QMessageBox.Ok)
+        msg_box.setStyleSheet("""
+            QMessageBox {
+                background-color: #2b2b2b;
+                color: white;
+            }
+            QMessageBox QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 4px;
+            }
+        """)
+        msg_box.exec_()
 
     def is_expired_token(self):
         # 定时验证token有效性
@@ -650,6 +689,9 @@ class UserPanel(QWidget):
             user_hide_time=user_hide_time,
             user_show_time=user_show_time
         )
+        
+        # 登录成功后进入联机大厅按钮保持显示（包括离线登录）
+        
         self.legal_login_btn.setEnabled(True)
         
     def handle_auth_failure(self, message):
