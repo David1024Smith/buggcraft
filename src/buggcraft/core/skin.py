@@ -122,7 +122,7 @@ def extract_minecraft_head(skin_data, output_path=None, scale_factor=10):
         
     except Exception as e:
         import traceback
-        traceback.logger.info_exc()
+        traceback.print_exc()
         raise Exception(f"处理皮肤时发生错误: {str(e)}")
     finally:
         # 清理临时文件
