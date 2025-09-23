@@ -158,6 +158,7 @@ class MinecraftLibLauncher(QObject):
         self.width = width
         self.height = height
         self.fullscreen = fullscreen
+        self.version = version
         
 
     def start(self):
