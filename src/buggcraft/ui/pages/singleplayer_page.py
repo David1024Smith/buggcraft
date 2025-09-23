@@ -50,7 +50,7 @@ class SinglePlayerPage(BasePage):
         
         # 创建启动按钮
         self.launch_btn = QMStartButton(scale_ratio=self.scale_ratio, resource_path=self.resource_path)
-        version_text = f"游戏版本号 {self.parent.user.minecraft_version}" if self.parent.user.minecraft_version else "游戏版本号"
+        version_text = f"游戏版本号 {self.launcher.version}" if self.launcher.version else "游戏版本号"
         self.launch_btn.set_texts('启动游戏', version_text)
         self.launch_btn.clicked.connect(self.started_changed.emit)
         
@@ -67,14 +67,14 @@ class SinglePlayerPage(BasePage):
     def started_game(self):
         """启动游戏"""
         if not self.parent.user.minecraft_username:
-            self.launch_btn.set_texts(f"请先设置角色", self.parent.user.minecraft_version)
+            self.launch_btn.set_texts(f"请先设置角色", self.launcher.version)
             self.parent.user_panel.login_status.setText("<font color='#F44800'>请先设置游戏角色</font>")
             return
         
         if not self.current_client:
             # 游戏未启动 - 启动过程
             self.launch_btn.setEnabled(False)
-            self.launch_btn.set_texts(f"启动中...", self.parent.user.minecraft_version)
+            self.launch_btn.set_texts(f"启动中...", self.launcher.version)
             self.launcher.set_language('简体中文')
             size = self.parent.settings_manager.get_setting("launcher.window_size", "默认")
 
@@ -83,7 +83,7 @@ class SinglePlayerPage(BasePage):
             w, h = None, None
             if size == '默认':
                 w, h = 854, 480
-            elif size == '与启动器一致': 
+            elif size == '与启动器一致':
                 # 转换为物理分辨率
                 physical_width, physical_height = get_physical_resolution(self.width(), self.height())
                 w, h = str(int(physical_width)), str(int(physical_height - 48 * self.scale_ratio))
@@ -95,7 +95,7 @@ class SinglePlayerPage(BasePage):
                 username=self.parent.user.minecraft_username,
                 token=self.parent.user.minecraft_token,
                 server=None,
-                version=self.parent.user.minecraft_version,
+                version=self.launcher.version,
                 # minecraft_directory=self.minecraft_directory,
                 memory=1024,
                 width=w,
@@ -107,12 +107,12 @@ class SinglePlayerPage(BasePage):
             self.launcher.start()
         else:
             # 游戏已启动 - 停止过程
-            self.launch_btn.set_texts(f"正在停止游戏...", self.parent.user.minecraft_version)
+            self.launch_btn.set_texts(f"正在停止游戏...", self.launcher.version)
             self.launcher.stop()
 
     def set_minecraft_version(self, version):
         """设置Minecraft版本"""
-        self.parent.user.minecraft_version = version
+        self.launcher.version = version
         if self.launch_btn:
             version_text = f"游戏版本号 {version}" if version else "游戏版本号"
             self.launch_btn.set_texts('启动游戏', version_text)
@@ -122,7 +122,7 @@ class SinglePlayerPage(BasePage):
         from PySide6.QtCore import QTimer
 
         def handle_status():
-            version_text = f"游戏版本号 {self.parent.user.minecraft_version}" if self.parent.user.minecraft_version else "游戏版本号"
+            version_text = f"游戏版本号 {self.launcher.version}" if self.launcher.version else "游戏版本号"
             self.launch_btn.set_texts(f"停止游戏", version_text)
             self.launch_btn.set_stop_style()
             self.launch_btn.setEnabled(True)
@@ -136,7 +136,7 @@ class SinglePlayerPage(BasePage):
         from PySide6.QtCore import QTimer
 
         def handle_status(code):
-            version_text = f"游戏版本号 {self.parent.user.minecraft_version}" if self.parent.user.minecraft_version else "游戏版本号"
+            version_text = f"游戏版本号 {self.launcher.version}" if self.launcher.version else "游戏版本号"
             self.launch_btn.set_texts("启动游戏", version_text)
             self.launch_btn.set_start_style()
             self.launch_btn.setEnabled(True)
