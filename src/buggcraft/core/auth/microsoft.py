@@ -284,7 +284,7 @@ class AsyncAuthServer(QObject):
                 self.server.shutdown()
                 logger.info('服务器关闭完成')
             except Exception as e:
-                traceback.logger.info_exc()
+                traceback.print_exc()
                 logger.info(f'服务器关闭异常: {e}')
         
         # 清理线程
@@ -298,9 +298,12 @@ class MicrosoftAuthenticator(QObject):
     def __init__(self, parent=None, skins_cache_path=None):
         super().__init__(parent)
         self.oauth_thread = None
-        self.signals = MicrosoftAuthSignals()
-        self.skins_cache_path = skins_cache_path  # 头像save
         self.decoder = JWTDecoder()  # 创建解码器实例
+        self.signals = MicrosoftAuthSignals()
+        self.auth_server = AsyncAuthServer()
+
+        self.skins_cache_path = skins_cache_path  # 头像save
+        self.signl_cancel = False  # 认证状态，表示是否取消认证
 
         # OAuth 认证参数
         # self.client_id = "00000000402b5328"
@@ -328,7 +331,6 @@ class MicrosoftAuthenticator(QObject):
         self.minecraft_uuid = None
         self.minecraft_username = None
         self.minecraft_token = None
-        self.minecraft_version = '1.21.8-Forge_58.1.0-OptiFine_J6_pre16'
         self.minecraft_skin = None
         self.minecraft_login_type = "offline"
         
@@ -336,7 +338,8 @@ class MicrosoftAuthenticator(QObject):
     def start_login(self):
         """启动登录流程（使用系统浏览器和本地服务器）"""
         # 创建异步服务器
-        self.auth_server = AsyncAuthServer()
+        self.signl_cancel = False
+        
         self.auth_server.code_received.connect(self.handle_auth_code)
         self.auth_server.error_occurred.connect(self.signals.failure)
         self.auth_server.signal_timeout.connect(lambda: self.signals.failure.emit("登录超时，请重试"))
@@ -351,6 +354,7 @@ class MicrosoftAuthenticator(QObject):
     
     def handle_auth_code(self, auth_code):
         """处理接收到的授权码"""
+        if self.signl_cancel: return  # 用户取消了认证
         self.authorization_code = auth_code
         self.signals.progress.emit("[2/9] 交换令牌...")
 
@@ -361,6 +365,7 @@ class MicrosoftAuthenticator(QObject):
         
     def get_oauth20_token(self):
         """使用授权码获取Microsoft访问令牌"""
+        if self.signl_cancel: return  # 用户取消了认证
         try:
             url = "https://login.live.com/oauth20_token.srf"
             data = {
@@ -390,6 +395,7 @@ class MicrosoftAuthenticator(QObject):
     
     def get_xbox_live_token(self):
         """获取Xbox Live令牌"""
+        if self.signl_cancel: return  # 用户取消了认证
         try:
             url = "https://user.auth.xboxlive.com/user/authenticate"
             headers = {
@@ -424,6 +430,7 @@ class MicrosoftAuthenticator(QObject):
     
     def get_xsts_token(self):
         """获取XSTS令牌"""
+        if self.signl_cancel: return  # 用户取消了认证
         try:
             url = "https://xsts.auth.xboxlive.com/xsts/authorize"
             headers = {
@@ -456,6 +463,7 @@ class MicrosoftAuthenticator(QObject):
     
     def get_minecraft_token(self):
         """获取Minecraft访问令牌"""
+        if self.signl_cancel: return  # 用户取消了认证
         try:
             url = "https://api.minecraftservices.com/authentication/login_with_xbox"
             headers = {
@@ -484,6 +492,7 @@ class MicrosoftAuthenticator(QObject):
     
     def get_minecraft_profile(self):
         """获取Minecraft玩家档案"""
+        if self.signl_cancel: return  # 用户取消了认证
         try:
             url = "https://api.minecraftservices.com/minecraft/profile"
             headers = {
@@ -507,6 +516,7 @@ class MicrosoftAuthenticator(QObject):
                     self.minecraft_skin = process_skin_info(uuid=self.minecraft_uuid, skin_info=minecraft_skins[0], output_dir=self.skins_cache_path)
                 
                 if self.minecraft_username and self.minecraft_uuid:
+                    self.auth_server.stop()
                     self.minecraft_login_type = "online"
                     self.signals.success.emit(self.minecraft_username, {
                         'uuid': self.minecraft_uuid,
@@ -519,12 +529,13 @@ class MicrosoftAuthenticator(QObject):
             else:
                 self.signals.failure.emit(f"获取玩家档案失败: HTTP {status_code}\n{response_data}")
         except Exception as e:
-            traceback.logger.info_exc()
+            traceback.print_exc()
             self.signals.failure.emit(f"获取玩家档案时发生异常: {str(e)}")
     
     def get_minecraft_mcstore(self):
         """检查游戏拥有情况
         使用Minecraft的访问令牌来检查该账号是否包含产品许可。"""
+        if self.signl_cancel: return  # 用户取消了认证
         headers = {
             'Authorization': f'Bearer {self.minecraft_token}',
             'Content-Type': 'application/json'
@@ -553,14 +564,6 @@ class MicrosoftAuthenticator(QObject):
 
         return False
 
-    def get_auth_parameters(self):
-        """获取认证参数（用于启动游戏）"""
-        return {
-            "username": self.minecraft_username,
-            "uuid": self.minecraft_uuid,
-            "token": self.minecraft_token
-        }
-    
     def save_credentials(self, filepath):
         """保存认证信息到文件"""
         import os, shutil
@@ -599,7 +602,7 @@ class MicrosoftAuthenticator(QObject):
             return True
         except Exception as e:
             import traceback
-            traceback.logger.info_exc()
+            traceback.print_exc()
             self.signals.failure.emit(f"保存凭据失败: {str(e)}")
             return False
     
@@ -686,6 +689,11 @@ class MicrosoftAuthenticator(QObject):
         if os.path.isfile(filepath):
             os.remove(filepath)
 
+    def cancel_authentication(self):
+        """用户取消认证"""
+        self.signl_cancel = True
+        if self.auth_server:
+            self.auth_server.stop()
 
 # 使用示例
 if __name__ == "__main__":
