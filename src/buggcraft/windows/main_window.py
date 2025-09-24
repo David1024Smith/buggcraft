@@ -18,7 +18,7 @@ from core.auth.microsoft import MicrosoftAuthenticator
 from ui.widgets.titlebar import TitleBar
 # from ui.widgets.buttons import QMStartButton
 # from ui.widgets.cards import QMCard
-from ui.widgets.panels import UserPanel
+from ui.widgets.panels.user import UserPanel
 from ui.pages.singleplayer_page import SinglePlayerPage
 # from ui.pages.multiplayer_page import MultiplayerPage
 # from ui.pages.download_page import DownloadPage
