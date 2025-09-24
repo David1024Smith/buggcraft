@@ -28,6 +28,12 @@ class TitleBar(QWidget):
         }
         self.tab_names = ["开始", "设置"]
         
+        # 版本按钮配置
+        self.version_buttons = ["版本选择", "版本设置"]
+        
+        # 控制按钮配置
+        self.control_buttons = ["最小化", "关闭"]
+        
         # 创建透明图标 
         self.transparent_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'ic_no.png')))
         
@@ -46,16 +52,10 @@ class TitleBar(QWidget):
         main_layout.setContentsMargins(22, -5, 15, 0)
         main_layout.setSpacing(0)
         
-         
-        # 中间标签区域  
-        main_layout.addStretch(1)  # 左侧拉伸
+        # 左侧拉伸，将所有按钮推到右侧
+        main_layout.addStretch(1)
         
-        self.tab_widget = QWidget()
-        tab_layout = QHBoxLayout(self.tab_widget)
-        tab_layout.setContentsMargins(0, 0, 0, 0)
-        tab_layout.setSpacing(0)
-        
-        # 创建标签按钮
+        # 为开始和设置按钮创建独立容器
         self.tab_buttons = []
         
         # 创建标签按钮容器
@@ -126,13 +126,13 @@ class TitleBar(QWidget):
         tab_button.setFont(QFont("Source Han Sans CN Heavy", 10))
         tab_button.setAlignment(Qt.AlignCenter)   
         
-        # 设置初始样式 
+        # 设置初始样式
         tab_button.setStyleSheet("""
             QLabel {
                 color: #8e8e8e;
                 font-weight: bold;
                 background: transparent;
-                 padding-left: 15px;
+                padding-left: 15px;
                 padding-top: 5px;
             }
         """)

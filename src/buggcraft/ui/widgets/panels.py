@@ -30,6 +30,7 @@ class UserPanel(QWidget):
         self.cache_path = cache_path
         self.resource_path = resource_path
         self.login_index = 0  # 第几次登录
+        self.current_login_mode = "正版登录"  # 当前登录模式：正版登录/离线登录
         self.background_color = QColor(0, 0, 0, 0)  # 透明背景
         self.backgroundColor = self.background_color
 
@@ -132,6 +133,13 @@ class UserPanel(QWidget):
         self.username_label.setFont(QFont("Source Han Sans CN Heavy", 8))
         self.username_label.setAlignment(Qt.AlignCenter)
         self.username_label.setStyleSheet(" color: #f8f8f8;")
+        
+        # 离线登录状态标签（仅在离线登录时显示）
+        self.offline_status_label = QLabel("离线登录")
+        self.offline_status_label.setFont(QFont("Source Han Sans CN Heavy", 8))
+        self.offline_status_label.setAlignment(Qt.AlignCenter)
+        self.offline_status_label.setStyleSheet("color: #f8f8f8;")
+        self.offline_status_label.hide()  # 默认隐藏
 
         # 创建正版登录按钮 
         self.legal_login_btn = self.create_image_button(
@@ -184,7 +192,9 @@ class UserPanel(QWidget):
         login_info_layout.addWidget(self.avatar, 0, Qt.AlignCenter)
         login_info_layout.addSpacing(10)
         login_info_layout.addWidget(self.username_label, 0, Qt.AlignCenter)
-        login_info_layout.addSpacing(50)  
+        login_info_layout.addSpacing(25)  # 减少间距，为离线状态标签留空间
+        login_info_layout.addWidget(self.offline_status_label, 0, Qt.AlignCenter)
+        login_info_layout.addSpacing(25)  # 保持总体间距平衡
         login_info_layout.addWidget(self.legal_login_btn, 0, Qt.AlignCenter)
         login_info_layout.addSpacing(20)
         login_info_layout.addWidget(self.multiplayer_lobby_btn, 0, Qt.AlignCenter)
@@ -349,6 +359,8 @@ class UserPanel(QWidget):
         # 更新按钮样式：正版登录激活，离线登录透明
         self.update_tab_button_style("正版登录", True)
         self.update_tab_button_style("离线登录", False)
+        # 更新登录信息组件
+        self.update_login_info_widget("正版登录")
 
     def offline_tab_btn_clicked(self):
         """离线登录按钮点击事件"""
@@ -357,6 +369,8 @@ class UserPanel(QWidget):
         # 更新按钮样式：离线登录激活，正版登录透明
         self.update_tab_button_style("正版登录", False)
         self.update_tab_button_style("离线登录", True)
+        # 更新登录信息组件
+        self.update_login_info_widget("离线登录")
 
     def update_tab_button_style(self, tab_name, is_active):
         """更新选项卡按钮样式"""
