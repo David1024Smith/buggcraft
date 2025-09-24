@@ -146,7 +146,7 @@ class UserPanel(QWidget):
             "正版登录", 
             os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'legal_login_btn.png')),
             self.authorized_online_login,
-            230, 40,   
+            230, 40,
             font_size=10
         )
         
@@ -171,7 +171,7 @@ class UserPanel(QWidget):
         self.multiplayer_lobby_btn.mousePressEvent = lambda event: self.show_multiplayer_dialog()
         self.multiplayer_lobby_btn.setCursor(Qt.PointingHandCursor)
         
-        # 登录状态标签 
+        # 登录状态标签
         self.login_status = QLabel("请选择登录方式")
         self.login_status.setFont(QFont("Source Han Sans CN Medium", 10))
         self.login_status.setAlignment(Qt.AlignCenter)
