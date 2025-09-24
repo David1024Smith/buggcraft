@@ -36,7 +36,7 @@ class UserPanel(QWidget):
         self.backgroundColor = self.background_color
         self.is_logging_in = False  # 登录状态标志
         self.is_offline_logged_in = False  # 离线登录状态标志
-        self.offline_username = ""  # 离线登录的用户名
+        # self.offline_username = ""  # 离线登录的用户名
 
         self.signals = MinecraftSignals()
         self.auth = MicrosoftAuthenticator(skins_cache_path=self.cache_path)
@@ -426,7 +426,7 @@ class UserPanel(QWidget):
                     logger.error(f"离线登录头像文件不存在: {offline_avatar_path}")
                 
                 # 更新用户名文本 
-                self.username_label.setText(self.offline_username)
+                self.username_label.setText(self.auth.minecraft_username)
                 
                 # 显示离线登录状态标签，并更新文本 
                 self.offline_status_label.setText("离线登录")
@@ -599,7 +599,7 @@ class UserPanel(QWidget):
         
         # 重置离线登录状态
         self.is_offline_logged_in = False
-        self.offline_username = ""
+        # self.auth.minecraft_username = ""  # TODO 有待商榷
         
         # 清除配置文件中的离线登录状态
         self.clear_offline_login_state()
@@ -630,7 +630,7 @@ class UserPanel(QWidget):
         
         # 设置离线登录状态
         self.is_offline_logged_in = True
-        self.offline_username = username
+        self.auth.minecraft_username = username
         
         # 保存离线登录状态到配置文件
         self.save_offline_login_state(username)
@@ -1007,7 +1007,7 @@ class UserPanel(QWidget):
             
             if is_logged_in and username:
                 self.is_offline_logged_in = True
-                self.offline_username = username
+                self.auth.minecraft_username = username
                 logger.info(f"离线登录状态已读取: 用户名={username}, 头像路径={avatar_path}")
                 return True, username, avatar_path
             else:
@@ -1025,7 +1025,7 @@ class UserPanel(QWidget):
             self.settings_manager.set_setting("offline_login.avatar_path", "")
             self.settings_manager.save_settings()
             self.is_offline_logged_in = False
-            self.offline_username = ""
+            self.auth.minecraft_username = ""
             logger.info("离线登录状态已清除")
         except Exception as e:
             logger.error(f"清除离线登录状态失败: {e}")
@@ -1038,7 +1038,7 @@ class UserPanel(QWidget):
             if is_logged_in and username:
                 # 设置离线登录状态属性
                 self.is_offline_logged_in = True
-                self.offline_username = username
+                self.auth.minecraft_username = username
                 self.current_login_mode = "离线登录"
                 
                 # 切换到离线登录选项卡
@@ -1062,7 +1062,7 @@ class UserPanel(QWidget):
             else:
                 # 确保未登录状态的界面正确显示
                 self.is_offline_logged_in = False
-                self.offline_username = ""
+                self.auth.minecraft_username = ""
                 logger.info("未找到需要恢复的离线登录状态")
         except Exception as e:
             logger.error(f"恢复离线登录状态失败: {e}")

@@ -107,7 +107,9 @@ class SinglePlayerPage(BasePage):
             self.launcher.start()
         else:
             # 游戏已启动 - 停止过程
+            from PySide6.QtWidgets import QApplication
             self.launch_btn.set_texts(f"正在停止游戏...", self.launcher.version)
+            QApplication.processEvents()
             self.launcher.stop()
 
     def set_minecraft_version(self, version):
@@ -122,28 +124,26 @@ class SinglePlayerPage(BasePage):
         from PySide6.QtCore import QTimer
 
         def handle_status():
-            version_text = f"{self.launcher.version}" if self.launcher.version else "未找到对应游戏"
-            self.launch_btn.set_texts(f"停止游戏", version_text)
-            self.launch_btn.set_stop_style()
+            self.launch_btn.set_texts(f"停止游戏", self.launcher.version)
+            self.launch_btn.set_start_style()
             self.launch_btn.setEnabled(True)
             self.current_client = True  # 游戏启动状态：已启动
 
         logger.info('minecraft_handle_started 游戏已启动')
-        QTimer.singleShot(2000, lambda: handle_status())
+        QTimer.singleShot(1000, lambda: handle_status())
     
     def minecraft_handle_stopped(self, exit_code):
         """游戏停止处理"""
         from PySide6.QtCore import QTimer
 
         def handle_status(code):
-            version_text = f"{self.launcher.version}" if self.launcher.version else "未找到对应游戏"
-            self.launch_btn.set_texts("启动游戏", version_text)
+            self.launch_btn.set_texts("启动游戏", self.launcher.version)
             self.launch_btn.set_start_style()
             self.launch_btn.setEnabled(True)
             self.current_client = False  # 游戏启动状态：未启动
 
         logger.info(f"minecraft_handle_stopped 游戏已退出，代码: {exit_code}")
-        QTimer.singleShot(2000, lambda: handle_status(exit_code))
+        QTimer.singleShot(1000, lambda: handle_status(exit_code))
 
     
     def minecraft_handle_error(self, message):

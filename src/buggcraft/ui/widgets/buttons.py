@@ -259,7 +259,7 @@ class QMStartButton(QWidget):
         """停止游戏样式"""
         self.setStyleSheet(f"""
             QWidget {{
-                background-color: #F44800;
+                background-color: transparent;
                 border-radius: 4px;
                 margin: 0;
                 padding: 0;
