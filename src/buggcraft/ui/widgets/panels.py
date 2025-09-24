@@ -1,4 +1,4 @@
-# UserPanel 类
+# UserPanel 类 x
 
 import os
 from PySide6.QtWidgets import (
@@ -295,32 +295,32 @@ class UserPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setAlignment(Qt.AlignCenter)
         
-        # 用户名输入框
-        self.username = QLineEdit()
-        self.username.setPlaceholderText("请输入用户名")
-        self.username.setFont(QFont("Source Han Sans CN Medium", 10))
-        self.username.setFixedSize(230-230/4, 50-50/4)
-        self.username.setStyleSheet("""
-            QLineEdit {
-                background-color: rgba(60, 60, 60, 150);
-                color: #f2f2f2;
-                border: 1px solid #000;
-                border-radius: 0px;
-                padding: 8px;
-            }
-        """)
-        layout.addWidget(self.username)
-        layout.addSpacing(10)
+        # 用户名输入框 - 已注释
+        # self.username = QLineEdit()
+        # self.username.setPlaceholderText("请输入用户名")
+        # self.username.setFont(QFont("Source Han Sans CN Medium", 10))
+        # self.username.setFixedSize(230-230/4, 50-50/4)
+        # self.username.setStyleSheet("""
+        #     QLineEdit {
+        #         background-color: rgba(60, 60, 60, 150);
+        #         color: #f2f2f2;
+        #         border: 1px solid #000;
+        #         border-radius: 0px;
+        #         padding: 8px;
+        #     }
+        # """)
+        # layout.addWidget(self.username)
+        # layout.addSpacing(10)
         
-        # 登录按钮
-        login_btn = self.create_image_button(
-            "登录",
-            os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'login_btn.png')),
-            self.authorized_login,
-            230-230/4, 45-45/4,
-            font_size=10
-        )
-        layout.addWidget(login_btn)
+        # 登录按钮 - 已注释
+        # login_btn = self.create_image_button(
+        #     "登录",
+        #     os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'login_btn.png')),
+        #     self.authorized_login,
+        #     230-230/4, 45-45/4,
+        #     font_size=10
+        # )
+        # layout.addWidget(login_btn)
         layout.addStretch()
         
         return content
@@ -375,19 +375,145 @@ class UserPanel(QWidget):
             btn.clear()  # 清除背景图片
             btn.setStyleSheet("background-color: transparent;")
 
-    def authorized_login(self):
-        """离线登录"""
-        username = self.username.text().strip()
-        if not username:
-            self.login_status.setText("<font color='#F44336'>请输入用户名</font>")
-            return
+    def update_login_info_widget(self, mode):
+        """根据登录模式更新登录信息组件"""
+        self.current_login_mode = mode
         
-        self.login_index += 1
-        self.handle_auth_success(username=username, data={
-            'uuid': None,
-            'token': None,
-            'skin': None
-        })
+        if mode == "离线登录":
+            # 离线登录模式
+            # 更新头像
+            offline_avatar_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'offline_login.png'))
+            if os.path.exists(offline_avatar_path):
+                pixmap = QPixmap(offline_avatar_path)
+                if not pixmap.isNull():
+                    self.avatar.setPixmap(pixmap.scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                    logger.info(f"切换为离线登录头像: offline_login.png")
+                else:
+                    logger.error(f"离线登录头像加载失败: {offline_avatar_path}")
+            else:
+                logger.error(f"离线登录头像文件不存在: {offline_avatar_path}")
+            
+            # 更新用户名文本
+            self.username_label.setText("Abin")
+            
+            # 显示离线登录状态标签
+            self.offline_status_label.show()
+            
+            # 更新登录按钮为切换账号按钮
+            # 先清除背景图片
+            self.legal_login_btn.clear()
+            # 移除旧的文本标签
+            for child in self.legal_login_btn.findChildren(QLabel):
+                child.deleteLater()
+            
+            # 设置新的样式和大小
+            self.legal_login_btn.setFixedSize(112, 38)
+            self.legal_login_btn.setStyleSheet("""
+                QLabel {
+                    color: #FFFFFF;
+                    font-weight: bold;
+                    background: #B8B9FF;
+                    border: 1px solid #000000;
+                    opacity: 0.8;
+                    border-radius: 0px;
+                }
+                QLabel:hover {
+                    opacity: 1.0;
+                }
+            """)
+            self.legal_login_btn.setText("切换账号")
+            self.legal_login_btn.setAlignment(Qt.AlignCenter)
+            
+            # 更新点击事件为切换账号功能
+            self.legal_login_btn.mousePressEvent = lambda event: self.switch_account_offline()
+            
+            logger.info("离线登录模式设置完成")
+            
+        else:
+            # 正版登录模式
+            # 更新头像
+            default_avatar_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'unlogged_avatar.png'))
+            if os.path.exists(default_avatar_path):
+                pixmap = QPixmap(default_avatar_path)
+                if not pixmap.isNull():
+                    self.avatar.setPixmap(pixmap.scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                    logger.info(f"切换为正版登录头像: unlogged_avatar.png")
+                else:
+                    logger.error(f"正版登录头像加载失败: {default_avatar_path}")
+            else:
+                logger.error(f"正版登录头像文件不存在: {default_avatar_path}")
+            
+            # 更新用户名文本
+            self.username_label.setText("未登录")
+            
+            # 隐藏离线登录状态标签
+            self.offline_status_label.hide()
+            
+            # 恢复正版登录按钮
+            # 清除当前内容
+            self.legal_login_btn.clear()
+            # 移除旧的文本标签
+            for child in self.legal_login_btn.findChildren(QLabel):
+                child.deleteLater()
+            
+            # 恢复大小
+            self.legal_login_btn.setFixedSize(230, 40)
+            
+            # 恢复背景图片
+            legal_login_btn_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'legal_login_btn.png'))
+            if os.path.exists(legal_login_btn_path):
+                pixmap = QPixmap(legal_login_btn_path)
+                if not pixmap.isNull():
+                    self.legal_login_btn.setPixmap(pixmap.scaled(230, 40, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                    logger.info(f"恢复正版登录按钮背景图片: legal_login_btn.png")
+                else:
+                    logger.error(f"正版登录按钮背景图片加载失败: {legal_login_btn_path}")
+            else:
+                logger.error(f"正版登录按钮背景图片文件不存在: {legal_login_btn_path}")
+            
+            # 创建新的文本标签
+            text_label = QLabel("正版登录", self.legal_login_btn)
+            text_label.setFont(QFont("Source Han Sans CN Heavy", 10))
+            text_label.setAlignment(Qt.AlignCenter)
+            text_label.setStyleSheet("color: #f2f2f2; background-color: transparent;")
+            text_label.setGeometry(0, 0, 230, 40)
+            text_label.show()  # 确保文本标签显示
+            
+            # 恢复正版登录按钮样式
+            self.legal_login_btn.setStyleSheet("""
+                QLabel {
+                    background-color: transparent;
+                }
+            """)
+            
+            # 清除离线模式可能设置的文本
+            self.legal_login_btn.setText("")
+            
+            # 恢复点击事件为正版登录
+            self.legal_login_btn.mousePressEvent = lambda event: self.authorized_online_login()
+            
+            logger.info("正版登录模式恢复完成")
+
+    def switch_account_offline(self):
+        """离线模式下的切换账号功能"""
+        logger.info("离线模式：切换账号被点击")
+        # 这里可以添加切换账号的逻辑，比如重新输入用户名或选择其他用户
+        # 目前只是一个占位功能
+        pass
+
+    # def authorized_login(self):
+    #     """离线登录 - 已注释"""
+    #     username = self.username.text().strip()
+    #     if not username:
+    #         self.login_status.setText("<font color='#F44336'>请输入用户名</font>")
+    #         return
+    #     
+    #     self.login_index += 1
+    #     self.handle_auth_success(username=username, data={
+    #         'uuid': None,
+    #         'token': None,
+    #         'skin': None
+    #     })
 
     def authorized_online_login(self):
         """正版登录"""

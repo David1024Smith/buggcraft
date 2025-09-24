@@ -42,6 +42,8 @@ NOTIFICATION_MESSAGES = {
     'error': '资源下载失败'
 }
 
+# Debug
+RESOURCE_DIR = Path.cwd() / 'resources'
 
 # def setup_directories():
 #     """创建必要的目录结构"""
