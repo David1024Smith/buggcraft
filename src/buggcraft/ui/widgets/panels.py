@@ -153,9 +153,6 @@ class UserPanel(QWidget):
         # 创建启动游戏按钮 
         self.start_game_btn = None
         
-        # 创建启动游戏按钮 
-        self.start_game_btn = None
-        
         # 创建进入联机大厅按钮
         self.multiplayer_lobby_btn = QLabel("进入联机大厅")
         self.multiplayer_lobby_btn.setFont(QFont("Source Han Sans CN Heavy", 8))
@@ -198,7 +195,7 @@ class UserPanel(QWidget):
         login_info_layout.addWidget(self.legal_login_btn, 0, Qt.AlignCenter)
         login_info_layout.addSpacing(20)
         login_info_layout.addWidget(self.multiplayer_lobby_btn, 0, Qt.AlignCenter)
-        
+
         # 登录账户上下文（登录后显示）
         self.login_account_context = QWidget()
         login_account_layout = QVBoxLayout(self.login_account_context)

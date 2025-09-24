@@ -49,8 +49,8 @@ class SinglePlayerPage(BasePage):
         content_layout.addStretch(1)
         
         # 创建启动按钮
-        self.launch_btn = QMStartButton(scale_ratio=self.scale_ratio, resource_path=self.resource_path)
-        version_text = f"游戏版本号 {self.launcher.version}" if self.launcher.version else "游戏版本号"
+        self.launch_btn = QMStartButton(resource_path=self.resource_path)
+        version_text = f"{self.launcher.version}" if self.launcher.version else "未找到对应游戏"
         self.launch_btn.set_texts('启动游戏', version_text)
         self.launch_btn.clicked.connect(self.started_changed.emit)
         
@@ -114,7 +114,7 @@ class SinglePlayerPage(BasePage):
         """设置Minecraft版本"""
         self.launcher.version = version
         if self.launch_btn:
-            version_text = f"游戏版本号 {version}" if version else "游戏版本号"
+            version_text = f"{version}" if version else "未找到对应游戏"
             self.launch_btn.set_texts('启动游戏', version_text)
     
     def minecraft_handle_started(self):
@@ -122,7 +122,7 @@ class SinglePlayerPage(BasePage):
         from PySide6.QtCore import QTimer
 
         def handle_status():
-            version_text = f"游戏版本号 {self.launcher.version}" if self.launcher.version else "游戏版本号"
+            version_text = f"{self.launcher.version}" if self.launcher.version else "未找到对应游戏"
             self.launch_btn.set_texts(f"停止游戏", version_text)
             self.launch_btn.set_stop_style()
             self.launch_btn.setEnabled(True)
@@ -136,7 +136,7 @@ class SinglePlayerPage(BasePage):
         from PySide6.QtCore import QTimer
 
         def handle_status(code):
-            version_text = f"游戏版本号 {self.launcher.version}" if self.launcher.version else "游戏版本号"
+            version_text = f"{self.launcher.version}" if self.launcher.version else "未找到对应游戏"
             self.launch_btn.set_texts("启动游戏", version_text)
             self.launch_btn.set_start_style()
             self.launch_btn.setEnabled(True)
