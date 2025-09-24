@@ -2,12 +2,46 @@
 
 import json
 import os
+import platform
 from typing import Any, Dict, Optional
-
-from utils.minecraft import find_minecraft_dirs
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def find_minecraft_dirs():
+    """
+    查找系统中的 Minecraft 目录
+    
+    Returns:
+        List[str]: 找到的 Minecraft 目录路径列表
+    """
+    minecraft_dirs = []
+    system = platform.system()
+    
+    if system == "Windows":
+        # Windows 系统的 Minecraft 目录
+        appdata = os.environ.get('APPDATA')
+        if appdata:
+            minecraft_path = os.path.join(appdata, '.minecraft')
+            if os.path.exists(minecraft_path):
+                minecraft_dirs.append(minecraft_path)
+    
+    elif system == "Darwin":  # macOS
+        # macOS 系统的 Minecraft 目录
+        home = os.path.expanduser('~')
+        minecraft_path = os.path.join(home, 'Library', 'Application Support', 'minecraft')
+        if os.path.exists(minecraft_path):
+            minecraft_dirs.append(minecraft_path)
+    
+    elif system == "Linux":
+        # Linux 系统的 Minecraft 目录
+        home = os.path.expanduser('~')
+        minecraft_path = os.path.join(home, '.minecraft')
+        if os.path.exists(minecraft_path):
+            minecraft_dirs.append(minecraft_path)
+    
+    return minecraft_dirs
 
 
 class SettingsManager:

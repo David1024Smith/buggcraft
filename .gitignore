@@ -3,5 +3,5 @@ venv
 *.pyc
 .secret
 dist*
-buggcraft
 *.log
+__pycache__

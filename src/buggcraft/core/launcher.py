@@ -83,7 +83,7 @@ class StartGameThread(QThread):
         except Exception as e:
             self.error.emit(f"启动错误: {str(e)}")
             import traceback
-            traceback.logger.info_exc()
+            traceback.print_exc()
         finally:
             self.finished.emit()
 
@@ -158,6 +158,7 @@ class MinecraftLibLauncher(QObject):
         self.width = width
         self.height = height
         self.fullscreen = fullscreen
+        self.version = version
         
 
     def start(self):
@@ -179,7 +180,8 @@ class MinecraftLibLauncher(QObject):
     def _start_game(self):
         """在工作线程中启动游戏"""
         try:
-            self.minecraft_directory = self.settings_manager.get_setting('minecraft.directory.enable')
+            minecraft_selets = self.settings_manager.get_setting('minecraft.directory.enable')
+            self.minecraft_directory = minecraft_selets.get('path')
             self.version = self.settings_manager.get_setting('minecraft.version.enable')
             
             # 准备启动环境
