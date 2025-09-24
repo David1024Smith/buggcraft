@@ -1,4 +1,4 @@
-# UserPanel 类 x
+# UserPanel 类
 
 import os
 from PySide6.QtWidgets import (
