@@ -10,6 +10,7 @@ from PySide6.QtGui import QFont, QPixmap, QColor, QPainter
 from core.auth.microsoft import MicrosoftAuthenticator, MinecraftSignals
 from ui.widgets.user_widget import QMWidget
 from ui.widgets.buttons import QMButton
+from ui.dialog.LoginDialog import LoginWaitDialog
 from config.settings import get_settings_manager
 
 
@@ -34,12 +35,11 @@ class UserPanel(QWidget):
         self.current_login_mode = "正版登录"  # 当前登录模式：正版登录/离线登录
         self.background_color = QColor(0, 0, 0, 0)  # 透明背景
         self.backgroundColor = self.background_color
-        self.is_logging_in = False  # 登录状态标志
         self.is_offline_logged_in = False  # 离线登录状态标志
-        # self.offline_username = ""  # 离线登录的用户名
 
         self.signals = MinecraftSignals()
-        self.auth = MicrosoftAuthenticator(skins_cache_path=self.cache_path)
+        self.login_dialog = LoginWaitDialog(self.resource_path, self.cache_path)
+        self.login_dialog.cancel_signal.connect(lambda: self.handle_auth_failure('取消登录'))
         
         # 初始化设置管理器
         self.settings_manager = get_settings_manager()
@@ -52,6 +52,10 @@ class UserPanel(QWidget):
         self.setFixedWidth(260)  # 固定宽度，但内部使用自适应布局
         self.init_ui()
 
+    @property
+    def auth(self):
+        return self.login_dialog.auth
+    
     def save_original_geometry(self):
         """保存原始几何信息 - 确保UI已完全布局"""
         # 强制更新布局
@@ -654,14 +658,9 @@ class UserPanel(QWidget):
 
     def authorized_online_login(self):
         """正版登录"""
-        # 防止按钮登录重复点击
-        if self.is_logging_in:
-            return
-        
-        self.is_logging_in = True
-        self.signals.output.emit("正在启动正版登录...")
+        self.login_dialog.start_login_process()
         self.login_index += 1
-        self.auth.start_login()
+        self.login_dialog.exec()
 
     def authorized_online_auto(self):
         """尝试自动登录"""
@@ -976,16 +975,11 @@ class UserPanel(QWidget):
         
         # 登录成功后进入联机大厅按钮保持显示（包括离线登录）
         
-        # 重置登录状态标志
-        self.is_logging_in = False
-        
     def handle_auth_failure(self, message):
         """处理登录失败"""
         self.signals.error.emit(f"登录失败: {message}")
         self.login_status.setText(message)
         self.login_status.setText(f"登录失败")
-        # 重置登录状态标志，允许重新点击登录按钮
-        self.is_logging_in = False
     
     def save_offline_login_state(self, username: str, avatar_path: str = ""):
         """保存离线登录状态到配置文件"""
