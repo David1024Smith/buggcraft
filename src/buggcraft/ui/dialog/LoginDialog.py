@@ -122,43 +122,31 @@ class LoginWaitDialog(QDialog):
         button_layout.setSpacing(20)
         button_layout.addStretch()
         
-        # 重新打开按钮
+        # 重新打开按钮  TODO 待加载背景图
         self.reopen_button = QPushButton("重新登录")
         self.reopen_button.setFixedSize(100, 35)
         self.reopen_button.setStyleSheet("""
             QPushButton {
-                background-color: #505050;
+                background-color: rgba(120, 89, 255, 1);
                 color: #e0e0e0;
                 border: none;
                 font-size: 13px;
                 font-weight: medium;
-            }
-            QPushButton:hover {
-                background-color: #606060;
-            }
-            QPushButton:pressed {
-                background-color: #404040;
             }
         """)
         self.reopen_button.clicked.connect(self.reopen_browser)
         button_layout.addWidget(self.reopen_button)
         
-        # 取消按钮
+        # 取消按钮  TODO 待加载背景图
         self.cancel_button = QPushButton("取消")
         self.cancel_button.setFixedSize(100, 35)
         self.cancel_button.setStyleSheet("""
             QPushButton {
-                background-color: #505050;
+                background-color: rgba(47, 46, 95, 1);
                 color: #e0e0e0;
                 border: none;
                 font-size: 13px;
                 font-weight: medium;
-            }
-            QPushButton:hover {
-                background-color: #606060;
-            }
-            QPushButton:pressed {
-                background-color: #404040;
             }
         """)
         self.cancel_button.clicked.connect(self.cancel_reject)
@@ -177,7 +165,7 @@ class LoginWaitDialog(QDialog):
         shadow.setOffset(0, 0)  # 零偏移量确保阴影均匀分布在四周
         
         # 应用阴影效果
-        self.main_widget.setContentsMargins(15, 15, 15, 15)  # 四周均匀的边距
+        self.main_widget.setContentsMargins(25, 25, 25, 25)  # 四周均匀的边距
         self.main_widget.setGraphicsEffect(shadow)
     
     def set_messages(self, mess):
