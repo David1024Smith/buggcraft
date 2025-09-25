@@ -2,13 +2,46 @@
 
 import json
 import os
-import minecraft_launcher_lib
-
+import platform
 from typing import Any, Dict, Optional
-from utils.minecraft import find_minecraft_dirs
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def find_minecraft_dirs():
+    """
+    查找系统中的 Minecraft 目录
+    
+    Returns:
+        List[str]: 找到的 Minecraft 目录路径列表
+    """
+    minecraft_dirs = []
+    system = platform.system()
+    
+    if system == "Windows":
+        # Windows 系统的 Minecraft 目录
+        appdata = os.environ.get('APPDATA')
+        if appdata:
+            minecraft_path = os.path.join(appdata, '.minecraft')
+            if os.path.exists(minecraft_path):
+                minecraft_dirs.append(minecraft_path)
+    
+    elif system == "Darwin":  # macOS
+        # macOS 系统的 Minecraft 目录
+        home = os.path.expanduser('~')
+        minecraft_path = os.path.join(home, 'Library', 'Application Support', 'minecraft')
+        if os.path.exists(minecraft_path):
+            minecraft_dirs.append(minecraft_path)
+    
+    elif system == "Linux":
+        # Linux 系统的 Minecraft 目录
+        home = os.path.expanduser('~')
+        minecraft_path = os.path.join(home, '.minecraft')
+        if os.path.exists(minecraft_path):
+            minecraft_dirs.append(minecraft_path)
+    
+    return minecraft_dirs
 
 
 class SettingsManager:
@@ -45,30 +78,19 @@ class SettingsManager:
             }
         }
 
-        # 获取已安装版本列表 {"name": "当前文件夹", "path": i, "type": "current"}
-        
-        minecraft_installed_dirs: list = []
+        # 获取已安装版本列表
+        import minecraft_launcher_lib
+        minecraft_dirs: list = find_minecraft_dirs()
 
-        for dir in find_minecraft_dirs():
-            if self.is_current_folder(dir):
-                minecraft_installed_dirs.append({"name": "当前文件夹", "path": dir, "type": "current"})
-                continue
-            elif self.is_official_folder(dir):
-                minecraft_installed_dirs.append({"name": "官方启动器文件夹", "path": dir, "type": "official"})
-            else:
-                minecraft_installed_dirs.append({"name": "其他文件夹", "path": dir, "type": "other"})
-
-        if minecraft_installed_dirs and len(minecraft_installed_dirs) > 0:
-            minecraft_enable = minecraft_installed_dirs[0]
-            minecraft_path = minecraft_enable.get('path')
+        if minecraft_dirs and len(minecraft_dirs) > 0:
+            minecraft_path = minecraft_dirs[0]
             installed_versions = minecraft_launcher_lib.utils.get_installed_versions(minecraft_path)
             logger.info(f"在目录 {minecraft_path} 中找到 {len(installed_versions)} 个已安装版本:")
             if installed_versions and len(installed_versions) > 0 and minecraft_path:
                 # 默认启用版本
                 minecraft_version = [i['id'] for i in installed_versions]
-
-                minecraft['directory']['enable'] = minecraft_enable
-                minecraft['directory']['installed'] = minecraft_installed_dirs
+                minecraft['directory']['enable'] = minecraft_path
+                minecraft['directory']['installed'] = minecraft_dirs
                 minecraft['version']['enable'] = minecraft_version[0]
                 minecraft['version']['installed'] = minecraft_version
 
@@ -105,35 +127,6 @@ class SettingsManager:
         # 加载现有配置或使用默认配置
         self.load_settings()
     
-    def get_default_official_path(self):
-        """获取官方启动器默认路径"""
-        # Windows系统
-        if os.name == 'nt':
-            return os.path.join(os.getenv('APPDATA'), '.minecraft')
-        # macOS系统
-        elif os.name == 'posix':
-            return os.path.expanduser('~/Library/Application Support/minecraft')
-        # Linux系统
-        else:
-            return os.path.expanduser('~/.minecraft')
-            
-    def is_current_folder(self, path):
-        """判断是否是当前文件夹"""
-        return path == os.getcwd()
-    
-    def is_official_folder(self, path):
-        """判断是否是官方启动器文件夹"""
-        return path == self.get_default_official_path()
-    
-    def get_path_type_label(self, path_type):
-        """获取路径类型标签文本"""
-        if path_type == "current":
-            return "当前文件夹"
-        elif path_type == "official":
-            return "官方启动器文件夹"
-        else:
-            return "自定义"
-        
     def load_settings(self, file_path: Optional[str] = None) -> bool:
         """
         从JSON文件加载配置

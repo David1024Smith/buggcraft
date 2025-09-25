@@ -42,9 +42,7 @@ NOTIFICATION_MESSAGES = {
     'error': '资源下载失败'
 }
 
-# Debug
 RESOURCE_DIR = Path.cwd() / 'resources'
-
 # def setup_directories():
 #     """创建必要的目录结构"""
 #     for directory in [HOME_DIR, CACHE_DIR, CONFIG_DIR, RESOURCE_DIR, DEPENDENCIES_DIR]:
@@ -205,13 +203,12 @@ def initialize_application():
     
     from PySide6.QtWidgets import QApplication
     from windows.main_window import MinecraftLauncher
-    from utils.font_loader import load_custom_font
 
     # 创建Qt应用
     app = QApplication(sys.argv)
     
-    # 加载自定义字体
-    load_custom_font(RESOURCE_DIR)
+    # 注释掉字体加载功能，使用系统默认字体
+    # load_custom_font(RESOURCE_DIR)
     
     # 设置应用样式
     app.setStyle('Fusion')

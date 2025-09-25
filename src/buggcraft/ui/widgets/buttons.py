@@ -151,9 +151,8 @@ class QMStartButton(QWidget):
     
     clicked = Signal()  # 点击信号
     
-    def __init__(self, line1="开始游戏", line2="游戏版本号", parent=None, scale_ratio=1, resource_path=None):
+    def __init__(self, line1="开始游戏", line2="游戏版本号", parent=None, resource_path=None):
         super().__init__(parent)
-        self.scale_ratio = scale_ratio
         self.resource_path = resource_path
         
         # 加载背景图片
@@ -161,20 +160,20 @@ class QMStartButton(QWidget):
         self.load_background_image()
         
         # 设置按钮背景图片
-        self.setFixedSize(int(350 * self.scale_ratio), int(100 * self.scale_ratio))
+        self.setFixedSize(239, 74)
         
         # 创建主布局 - 设置为无边距 居中
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
 
-        # 创建文本容器  
+        # 创建文本容器
         self.text_container = QWidget()
 
-        self.text_container.setFixedSize(int(350 * self.scale_ratio), int(100 * self.scale_ratio))
+        self.text_container.setFixedSize(239, 74)
         self.text_layout = QVBoxLayout(self.text_container)
         self.text_layout.setContentsMargins(0, 0, 0, 0)   
-        self.text_layout.setSpacing(int(5 * self.scale_ratio))  
+        self.text_layout.setSpacing(0)  
         
         # 第一行文本标签
         self.line1_label = QLabel(line1)
@@ -182,7 +181,7 @@ class QMStartButton(QWidget):
         self.line1_label.setStyleSheet(f"""
             QLabel {{
                 color: #6D6FFE;
-                font-size: {int(23 * self.scale_ratio)}px;
+                font-size: 14px;
                 font-weight: bold;
                 margin: 0;
                 padding: 0;
@@ -196,7 +195,7 @@ class QMStartButton(QWidget):
         self.line2_label.setStyleSheet(f"""
             QLabel {{
                 color: #6D6FFE;
-                font-size: {int(11 * self.scale_ratio)}px;
+                font-size: 10px;
                 margin: 0;
                 padding: 0;
                 background: transparent;
@@ -206,6 +205,7 @@ class QMStartButton(QWidget):
         # 垂直居中
         self.text_layout.addStretch(1)
         self.text_layout.addWidget(self.line1_label)
+        self.text_layout.setSpacing(2)
         self.text_layout.addWidget(self.line2_label)
         self.text_layout.addStretch(1)
         
@@ -225,10 +225,8 @@ class QMStartButton(QWidget):
         if os.path.exists(bg_image_path):
             self.bg_pixmap = QPixmap(bg_image_path)
             if self.bg_pixmap and not self.bg_pixmap.isNull():
-                target_width = int(350 * self.scale_ratio)  
-                target_height = int(100 * self.scale_ratio)  
                 self.bg_pixmap = self.bg_pixmap.scaled(
-                    target_width, target_height, 
+                    239, 74, 
                     Qt.KeepAspectRatio, 
                     Qt.SmoothTransformation
                 )
@@ -251,18 +249,7 @@ class QMStartButton(QWidget):
         self.setStyleSheet(f"""
             QWidget {{
                 background: transparent;
-                border-radius: {int(4 * self.scale_ratio)}px;
-                margin: 0;
-                padding: 0;
-            }}
-        """)
-    
-    def set_start_tab_style(self):
-        """启动标签样式"""
-        self.setStyleSheet(f"""
-            QWidget {{
-                background: transparent;
-                border-radius: {int(4 * self.scale_ratio)}px;
+                border-radius: 4px;
                 margin: 0;
                 padding: 0;
             }}
@@ -272,21 +259,13 @@ class QMStartButton(QWidget):
         """停止游戏样式"""
         self.setStyleSheet(f"""
             QWidget {{
-                background-color: #F44800;
-                border-radius: {int(4 * self.scale_ratio)}px;
+                background-color: transparent;
+                border-radius: 4px;
                 margin: 0;
                 padding: 0;
             }}
         """)
 
-    def set_line_spacing(self, spacing):
-        """设置两行文本之间的间距"""
-        # 设置文本行间距
-        self.text_layout.setSpacing(spacing)
-        
-        # 调整文本容器在按钮中的位置
-        self.adjust_container_position(spacing)
-    
     def adjust_container_position(self, spacing):
         """根据间距调整文本容器位置"""
         # 计算文本容器的总高度
@@ -302,25 +281,9 @@ class QMStartButton(QWidget):
         self.text_container.setGeometry(
             0,  # x坐标
             top_offset,  # y坐标
-            int(480 * self.scale_ratio),  # 宽度 
+            480,  # 宽度 
             container_height  # 高度
         )
-    
-    def set_text_padding(self, top=0, bottom=0):
-        """设置文本容器的上下内边距"""
-        # 获取当前边距
-        current_margins = self.text_layout.contentsMargins()
-        
-        # 设置新的边距 - 只改变上下边距
-        self.text_layout.setContentsMargins(
-            current_margins.left(),   # 左
-            top,                      # 上
-            current_margins.right(),   # 右
-            bottom                    # 下
-        )
-        
-        # 重新调整位置
-        self.adjust_container_position(self.text_layout.spacing())
     
     def set_texts(self, line1, line2):
         """设置两行文本"""
@@ -328,31 +291,6 @@ class QMStartButton(QWidget):
         self.line2_label.setText(line2)
         self.adjust_container_position(self.text_layout.spacing())
     
-    def set_line1_style(self, color, font_size, font_weight="bold"):
-        """设置第一行文本样式"""
-        self.line1_label.setStyleSheet(f"""
-            QLabel {{
-                color: {color};
-                font-size: {font_size}px;
-                font-weight: {font_weight};
-                margin: 0;
-                padding: 0;
-            }}
-        """)
-        self.adjust_container_position(self.text_layout.spacing())
-    
-    def set_line2_style(self, color, font_size):
-        """设置第二行文本样式"""
-        self.line2_label.setStyleSheet(f"""
-            QLabel {{
-                color: {color};
-                font-size: {font_size}px;
-                margin: 0;
-                padding: 0;
-            }}
-        """)
-        self.adjust_container_position(self.text_layout.spacing())
-
     def mousePressEvent(self, event):
         """鼠标点击事件"""
         self.set_start_style()

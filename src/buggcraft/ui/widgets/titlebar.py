@@ -37,7 +37,7 @@ class TitleBar(QWidget):
         # 创建透明图标 
         self.transparent_icon = QIcon(os.path.abspath(os.path.join(self.resource_path, 'images', 'bar', 'ic_no.png')))
         
-        self.setFixedHeight(55)  # 固定高度，确保按钮不被裁切
+        self.setFixedHeight(58)  # 固定高度，确保按钮不被裁切
         self.init_ui()
     
     def paintEvent(self, event):
@@ -70,7 +70,6 @@ class TitleBar(QWidget):
             
             # 设置按钮的父容器
             tab_button.setParent(tab_container)
-            
             
             if i == 0:  # 开始按钮
                 tab_button.move(0, -8)   
