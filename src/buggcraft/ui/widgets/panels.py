@@ -269,8 +269,8 @@ class UserPanel(QWidget):
         tab_buttons_widget = QWidget()
         tab_buttons_layout = QVBoxLayout(tab_buttons_widget)   
         tab_buttons_layout.setContentsMargins(30, 20, 0, 0)
-        tab_buttons_layout.setSpacing(30)   
-        tab_buttons_layout.addSpacing(50)  # 左侧按钮的顶部间距
+        # tab_buttons_layout.setSpacing(30)
+        tab_buttons_layout.addSpacing(10)  # 左侧按钮的顶部间距
         
         # 离线选项卡按钮 
         self.offline_tab_btn = self.create_tab_button("离线登录", self.offline_tab_btn_clicked, size=(155, 44), font_size=10)  # 使用背景图片实际大小155x44
