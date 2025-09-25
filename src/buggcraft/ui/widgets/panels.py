@@ -35,7 +35,9 @@ class UserPanel(QWidget):
         self.current_login_mode = "正版登录"  # 当前登录模式：正版登录/离线登录
         self.background_color = QColor(0, 0, 0, 0)  # 透明背景
         self.backgroundColor = self.background_color
-        self.is_offline_logged_in = False  # 离线登录状态标志
+        self.is_offline_logged_in = False  # 离线登录状态标志       
+        self.offline_username = ""  
+        self.offline_avatar_path = ""   
 
         self.signals = MinecraftSignals()
         self.login_dialog = LoginWaitDialog(self.resource_path, self.cache_path)
@@ -247,16 +249,6 @@ class UserPanel(QWidget):
         login_account_layout = QVBoxLayout(self.login_account_context)
         login_account_layout.setContentsMargins(0, 0, 0, 0)
         
-        self.login_switch_btn = QMButton(
-            text='切换账号',
-            parent=self,
-            icon=os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'switch.png')),
-            font_size=10,
-            size=(230-230/4, 44-44/4)
-        )
-        self.login_switch_btn.clicked.connect(self.logout)
-        
-        login_account_layout.addWidget(self.login_switch_btn, 0, Qt.AlignCenter)
         login_account_layout.addSpacing(10)
         
         user_layout.addWidget(self.login_account_context, 0, Qt.AlignCenter)
@@ -312,8 +304,9 @@ class UserPanel(QWidget):
         
         main_layout.addWidget(self.tab_container)
         
-        # 程序启动时自动恢复离线登录状态
+        # 程序启动时加载离线登录状态不自动切换界面
         self.restore_offline_login_state()
+        self.external_tab_btn_clicked()
 
     def create_tab_button(self, text, click_handler, size=(155, 44), font_size=12):
         """创建选项卡按钮"""
@@ -429,8 +422,8 @@ class UserPanel(QWidget):
                 else:
                     logger.error(f"离线登录头像文件不存在: {offline_avatar_path}")
                 
-                # 更新用户名文本 
-                self.username_label.setText(self.auth.minecraft_username)
+                #   离线登录用户名
+                self.username_label.setText(self.offline_username)
                 
                 # 显示离线登录状态标签，并更新文本 
                 self.offline_status_label.setText("离线登录")
@@ -529,74 +522,135 @@ class UserPanel(QWidget):
                 if hasattr(self, 'offline_content'):
                     self.offline_content.hide()            
         else:
-            # 正版登录模式
-            # 更新头像
-            default_avatar_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'unlogged_avatar.png'))
-            if os.path.exists(default_avatar_path):
-                pixmap = QPixmap(default_avatar_path)
-                if not pixmap.isNull():
-                    self.avatar.setPixmap(pixmap.scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
-                    logger.info(f"切换为正版登录头像: unlogged_avatar.png")
+            # 检查是否已经正版登录
+            is_online_logged_in = (
+                hasattr(self.auth, 'minecraft_token') and 
+                self.auth.minecraft_token and 
+                hasattr(self.auth, 'minecraft_username') and 
+                self.auth.minecraft_username and
+                # 检查是否有正版登录的token 
+                len(str(self.auth.minecraft_token)) > 50
+            )
+            
+            if is_online_logged_in:
+                # 已登录状态：恢复正版登录的头像、用户名和按钮状态                
+                if hasattr(self.auth, 'minecraft_avatar_path') and self.auth.minecraft_avatar_path:
+                    # 使用已保存的正版登录头像路径
+                    avatar_path = self.auth.minecraft_avatar_path
+                    if os.path.exists(avatar_path):
+                        pixmap = QPixmap(avatar_path)
+                        if not pixmap.isNull():
+                            self.avatar.setPixmap(pixmap.scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                        else:
+                            logger.error(f"正版登录头像加载失败: {avatar_path}")
+                    else:
+                        logger.error(f"正版登录头像文件不存在: {avatar_path}")
                 else:
-                    logger.error(f"正版登录头像加载失败: {default_avatar_path}")
-            else:
-                logger.error(f"正版登录头像文件不存在: {default_avatar_path}")
-            
-            # 更新用户名文本
-            self.username_label.setText("未登录")
-            
-            # 隐藏离线登录状态标签
-            self.offline_status_label.hide()
-            
-            # 恢复正版登录按钮
-            # 清除当前内容
-            self.legal_login_btn.clear()
-            # 移除旧的文本标签
-            for child in self.legal_login_btn.findChildren(QLabel):
-                child.deleteLater()
-            
-            # 恢复大小
-            self.legal_login_btn.setFixedSize(230, 40)
-            
-            # 恢复背景图片
-            legal_login_btn_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'legal_login_btn.png'))
-            if os.path.exists(legal_login_btn_path):
-                pixmap = QPixmap(legal_login_btn_path)
-                if not pixmap.isNull():
-                    self.legal_login_btn.setPixmap(pixmap.scaled(230, 40, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
-                    logger.info(f"恢复正版登录按钮背景图片: legal_login_btn.png")
+                    # 如果没有保存的头像使用默认的头像
+                    minecraft_avatar_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'unlogged_avatar.png'))
+                    if os.path.exists(minecraft_avatar_path):
+                        pixmap = QPixmap(minecraft_avatar_path)
+                        if not pixmap.isNull():
+                            self.avatar.setPixmap(pixmap.scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                        else:
+                            logger.error(f"正版登录默认头像加载失败: {minecraft_avatar_path}")
+                    else:
+                        logger.error(f"正版登录默认头像文件不存在: {minecraft_avatar_path}")
+                
+                # 恢复正版登录的用户名
+                if hasattr(self.auth, 'minecraft_username') and self.auth.minecraft_username:
+                    self.username_label.setText(self.auth.minecraft_username)
                 else:
-                    logger.error(f"正版登录按钮背景图片加载失败: {legal_login_btn_path}")
+                    self.username_label.setText("正版用户")                
+                # 隐藏离线登录状态标签
+                self.offline_status_label.hide()
+                # 隐藏离线登录输入框和登录按钮
+                self.offline_username_input.hide()
+                self.offline_login_btn.hide()
+                
+                # 切换账号
+                if self.legal_login_btn.text() != "切换账号":
+                    # 清除当前内容
+                    self.legal_login_btn.clear()
+                    # 移除旧的文本标签
+                    for child in self.legal_login_btn.findChildren(QLabel):
+                        child.deleteLater()
+                    self.legal_login_btn.setFixedSize(230, 40)
+                    self.legal_login_btn.setStyleSheet("""
+                        QLabel {
+                            color: #FFFFFF;
+                            font-weight: bold;
+                            background: #2A2C3E;
+                            border: 1px solid #000000;
+                            opacity: 0.8;
+                            border-radius: 0px;
+                        }
+                        QLabel:hover {
+                            opacity: 1.0;
+                        }
+                    """)
+                    self.legal_login_btn.setText("切换账号")
+                    self.legal_login_btn.setAlignment(Qt.AlignCenter)
+                    
+                    # 切换账号
+                    self.legal_login_btn.mousePressEvent = lambda event: self.switch_to_login_mode()
             else:
-                logger.error(f"正版登录按钮背景图片文件不存在: {legal_login_btn_path}")
-            
-            # 创建新的文本标签
-            text_label = QLabel("正版登录", self.legal_login_btn)
-            text_label.setFont(QFont("Source Han Sans CN Heavy", 10))
-            text_label.setAlignment(Qt.AlignCenter)
-            text_label.setStyleSheet("color: #f2f2f2; background-color: transparent;")
-            text_label.setGeometry(0, 0, 230, 40)
-            text_label.show()  # 确保文本标签显示
-            
-            # 恢复正版登录按钮样式
-            self.legal_login_btn.setStyleSheet("""
-                QLabel {
-                    background-color: transparent;
-                }
-            """)
-            
-            # 清除离线模式可能设置的文本
-            self.legal_login_btn.setText("")
-            
-            # 恢复点击事件为正版登录
-            self.legal_login_btn.mousePressEvent = lambda event: self.authorized_online_login()
-            
-            # 隐藏离线登录输入框和登录按钮
-            self.offline_username_input.hide()
-            self.offline_login_btn.hide()
-            
-            logger.info("正版登录模式恢复完成")
-
+                # 未登录状态：默认界面
+                # 更新头像
+                default_avatar_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'unlogged_avatar.png'))
+                if os.path.exists(default_avatar_path):
+                    pixmap = QPixmap(default_avatar_path)
+                    if not pixmap.isNull():
+                        self.avatar.setPixmap(pixmap.scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                    else:
+                        logger.error(f"正版登录头像加载失败: {default_avatar_path}")
+                else:
+                    logger.error(f"正版登录头像文件不存在: {default_avatar_path}")
+                
+                # 更新用户名文本
+                self.username_label.setText("未登录")
+                # 隐藏离线登录状态标签
+                self.offline_status_label.hide()
+                self.legal_login_btn.clear()
+                for child in self.legal_login_btn.findChildren(QLabel):
+                    child.deleteLater()
+                self.legal_login_btn.setFixedSize(230, 40)
+                
+                # 恢复正版登录按钮背景图片
+                legal_login_btn_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'legal_login_btn.png'))
+                if os.path.exists(legal_login_btn_path):
+                    pixmap = QPixmap(legal_login_btn_path)
+                    if not pixmap.isNull():
+                        self.legal_login_btn.setPixmap(pixmap.scaled(230, 40, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                    else:
+                        logger.error(f"正版登录按钮背景图片加载失败: {legal_login_btn_path}")
+                else:
+                    logger.error(f"正版登录按钮背景图片文件不存在: {legal_login_btn_path}")
+                
+                # 正版登录按钮文本
+                text_label = QLabel("正版登录", self.legal_login_btn)
+                text_label.setFont(QFont("Source Han Sans CN Heavy", 10))
+                text_label.setAlignment(Qt.AlignCenter)
+                text_label.setStyleSheet("color: #f2f2f2; background-color: transparent;")
+                text_label.setGeometry(0, 0, 230, 40)
+                text_label.show()   
+                
+                # 正版登录按钮样式
+                self.legal_login_btn.setStyleSheet("""
+                    QLabel {
+                        background-color: transparent;
+                    }
+                """)
+                
+                # 清除离线模式设置的文本
+                self.legal_login_btn.setText("")
+                
+                # 恢复点击事件为正版登录
+                self.legal_login_btn.mousePressEvent = lambda event: self.authorized_online_login()
+                
+                # 隐藏离线登录输入框和登录按钮
+                self.offline_username_input.hide()
+                self.offline_login_btn.hide()
     def switch_account_offline(self):
         """离线模式下的切换账号功能"""
         logger.info("离线模式：切换账号被点击")
@@ -634,7 +688,7 @@ class UserPanel(QWidget):
         
         # 设置离线登录状态
         self.is_offline_logged_in = True
-        self.auth.minecraft_username = username
+        self.offline_username = username 
         
         # 保存离线登录状态到配置文件
         self.save_offline_login_state(username)
@@ -821,7 +875,14 @@ class UserPanel(QWidget):
         # 确保所有子控件可见
         self.show()
         self.tab_container.show()
-        if self.auth.minecraft_username:
+        # 根据当前登录模式判断是否已登录
+        is_logged_in = False
+        if self.current_login_mode == "离线登录":
+            is_logged_in = self.is_offline_logged_in and self.offline_username
+        else:  
+            is_logged_in = self.auth.minecraft_username
+        
+        if is_logged_in:
             self.animations_show_user_info(user_hide_time=0, user_show_time=0)
         else:
             self.animations_show_user_login(user_hide_time=0, user_show_time=0)
@@ -878,9 +939,9 @@ class UserPanel(QWidget):
         self.login_status.setText(f"<font color='#4CAF50'>{'正版登录' if login_type == 'online' else '离线登录'}</font>")
 
         # 更新头像
-        border_color = '#4CAF50'
+        border_color = '#7859FF'
         if not login_type == "online":
-            border_color = '#2196F3'
+            border_color = '#7859FF'
 
         self.avatar.setStyleSheet(f"""
             QLabel {{
@@ -895,17 +956,48 @@ class UserPanel(QWidget):
             # 使用登录成功后获取的用户头像
             logger.info(f"使用登录获取的头像: {skin_avatar}")
             self.avatar.setPixmap(QPixmap(skin_avatar).scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+            
+            # 正版登录保存头像路径到auth对象
+            if login_type == "online":
+                self.auth.minecraft_avatar_path = skin_avatar
         elif login_type == "online":
             # 仅对正版登录使用默认头像，离线登录保持已设置的头像
             default_avatar_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'unlogged_avatar.png'))
             logger.info(f"使用默认头像: {default_avatar_path}")
             if os.path.exists(default_avatar_path):
                 self.avatar.setPixmap(QPixmap(default_avatar_path).scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                # 保存默认头像路径
+                self.auth.minecraft_avatar_path = default_avatar_path
             else:
                 logger.error(f"默认头像文件不存在: {default_avatar_path}")
         else:
             # 离线登录时保持已设置的头像不变
             logger.info("离线登录保持已设置的头像不变")
+        # 是正版登录成功，更新按钮状态为"切换账号"
+        if login_type == "online":
+            self.legal_login_btn.clear()
+            for child in self.legal_login_btn.findChildren(QLabel):
+                child.deleteLater()
+            # 设置按钮样式为切换账号样式
+            self.legal_login_btn.setFixedSize(230, 40)
+            self.legal_login_btn.setStyleSheet("""
+                QLabel {
+                    color: #FFFFFF;
+                    font-weight: bold;
+                    background: #2A2C3E;
+                    border: 1px solid #000000;
+                    opacity: 0.8;
+                    border-radius: 0px;
+                }
+                QLabel:hover {
+                    opacity: 1.0;
+                }
+            """)
+            self.legal_login_btn.setText("切换账号")
+            self.legal_login_btn.setAlignment(Qt.AlignCenter)
+            
+            # 更新点击事件为切换账号
+            self.legal_login_btn.mousePressEvent = lambda event: self.switch_to_login_mode()        
         self.login_success.emit({'uuid': uuid, 'username': username, 'token': token}, login_type)
         
         # 登录成功后进入联机大厅按钮保持显示
@@ -967,11 +1059,7 @@ class UserPanel(QWidget):
             self.collcall_login(uuid, username, token, login_type, skin_avatar)
         else:
             # 正版登录显示切换账号弹窗
-            self.animations_show_user_info(
-                call=lambda: self.collcall_login(uuid, username, token, login_type, skin_avatar),
-                user_hide_time=user_hide_time,
-                user_show_time=user_show_time
-            )
+            self.collcall_login(uuid, username, token, login_type, skin_avatar)
         
         # 登录成功后进入联机大厅按钮保持显示（包括离线登录）
         
@@ -1001,8 +1089,8 @@ class UserPanel(QWidget):
             
             if is_logged_in and username:
                 self.is_offline_logged_in = True
-                self.auth.minecraft_username = username
-                logger.info(f"离线登录状态已读取: 用户名={username}, 头像路径={avatar_path}")
+                self.offline_username = username   
+                self.offline_avatar_path = avatar_path   
                 return True, username, avatar_path
             else:
                 logger.info("未找到有效的离线登录状态")
@@ -1019,45 +1107,86 @@ class UserPanel(QWidget):
             self.settings_manager.set_setting("offline_login.avatar_path", "")
             self.settings_manager.save_settings()
             self.is_offline_logged_in = False
-            self.auth.minecraft_username = ""
+            self.offline_username = ""  
+            self.offline_avatar_path = ""   
             logger.info("离线登录状态已清除")
         except Exception as e:
             logger.error(f"清除离线登录状态失败: {e}")
     
     def restore_offline_login_state(self):
-        """程序启动时自动恢复离线登录状态"""
+        """程序启动时加载离线登录状态但不自动切换界面"""
         try:
             is_logged_in, username, avatar_path = self.load_offline_login_state()
             
             if is_logged_in and username:
                 # 设置离线登录状态属性
                 self.is_offline_logged_in = True
-                self.auth.minecraft_username = username
-                self.current_login_mode = "离线登录"
+                self.offline_username = username   
+                self.offline_avatar_path = avatar_path  
                 
-                # 切换到离线登录选项卡
-                self.external_content.hide()
-                self.offline_content.hide() 
-                # 更新按钮样式：离线登录激活，正版登录透明
-                self.update_tab_button_style("正版登录", False)
-                self.update_tab_button_style("离线登录", True)
-                
-                # 更新界面状态为已登录
-                self.update_login_info_widget("离线登录")
-                
-                # 如果有保存的头像路径，尝试加载
-                if avatar_path and os.path.exists(avatar_path):
-                    pixmap = QPixmap(avatar_path)
-                    if not pixmap.isNull():
-                        self.avatar.setPixmap(pixmap.scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
-                        logger.info(f"离线登录头像已恢复: {avatar_path}")
-                
-                logger.info(f"离线登录状态已自动恢复: 用户名={username}")
             else:
-                # 确保未登录状态的界面正确显示
+                # 显示未登录状态的界面
                 self.is_offline_logged_in = False
                 self.auth.minecraft_username = ""
-                logger.info("未找到需要恢复的离线登录状态")
         except Exception as e:
-            logger.error(f"恢复离线登录状态失败: {e}")
-
+            logger.error(f"加载离线登录状态失败: {e}")
+    
+    def switch_to_login_mode(self):
+        """切换账号功能 - 从已登录状态切换回登录界面"""        
+        # 清除认证信息
+        self.auth.clear(os.path.join(self.cache_path))
+        # 恢复默认头像
+        default_avatar_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'unlogged_avatar.png'))
+        if os.path.exists(default_avatar_path):
+            pixmap = QPixmap(default_avatar_path)
+            if not pixmap.isNull():
+                self.avatar.setPixmap(pixmap.scaled(80, 80, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+                logger.info(f"恢复默认头像: unlogged_avatar.png")
+            else:
+                logger.error(f"默认头像加载失败: {default_avatar_path}")
+        else:
+            logger.error(f"默认头像文件不存在: {default_avatar_path}")
+        
+        self.username_label.setText("未登录")
+        self.avatar.setStyleSheet("""
+            QLabel {
+                background-color: #2b2b2b;
+                border-radius: 0px;
+                border: 2px solid #7859FF;
+            }
+        """)
+        self.legal_login_btn.clear()
+        for child in self.legal_login_btn.findChildren(QLabel):
+            child.deleteLater()
+        
+        self.legal_login_btn.setFixedSize(230, 40)
+        
+        # 恢复正版登录按钮背景图片
+        legal_login_btn_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'legal_login_btn.png'))
+        if os.path.exists(legal_login_btn_path):
+            pixmap = QPixmap(legal_login_btn_path)
+            if not pixmap.isNull():
+                self.legal_login_btn.setPixmap(pixmap.scaled(230, 40, Qt.IgnoreAspectRatio, Qt.SmoothTransformation))
+            else:
+                logger.error(f"正版登录按钮背景图片加载失败: {legal_login_btn_path}")
+        else:
+            logger.error(f"正版登录按钮背景图片文件不存在: {legal_login_btn_path}")
+        
+        text_label = QLabel("正版登录", self.legal_login_btn)
+        text_label.setFont(QFont("Source Han Sans CN Heavy", 10))
+        text_label.setAlignment(Qt.AlignCenter)
+        text_label.setStyleSheet("color: #f2f2f2; background-color: transparent;")
+        text_label.setGeometry(0, 0, 230, 40)
+        text_label.show()   
+        self.legal_login_btn.setStyleSheet("""
+            QLabel {
+                background-color: transparent;
+            }
+        """)
+        self.legal_login_btn.setText("")
+        self.legal_login_btn.mousePressEvent = lambda event: self.authorized_online_login()
+        self.offline_status_label.hide()
+        self.offline_username_input.hide()
+        self.offline_login_btn.hide()
+        self.login_status.setText("请选择登录方式")
+        self.login_status.setStyleSheet("color: #808080;")
