@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import traceback
@@ -172,25 +173,332 @@ class CallbackHandler(BaseHTTPRequestHandler):
             params = parse_qs(query)
             code = params.get('code', [None])[0]  # 获取授权码
             error = params.get('error', [None])[0]  # 获取错误信息（如果有）
-            
+            BUGG_RESOURCE = os.environ.get('BUGG_RESOURCE')
             # 根据是否获取到授权码进行不同处理
             if code:
                 # 发送HTTP 200响应给浏览器
                 self.send_response(200)
                 self.send_header('Content-type', 'text/html; charset=utf-8')
                 self.end_headers()  # 结束头部设置
-                response_content = """
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <meta charset="UTF-8">
-                        <title>认证成功</title>
-                    </head>
-                    <body>
-                        <h1>认证成功！</h1>
-                        <p>你可以安全地关闭此窗口并返回应用程序。</p>
-                    </body>
-                    </html>
+                response_content = f"""
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>正版登录成功</title>
+    <style>
+        /* 定义 '字魂像素积木体' 字体 */
+        @font-face {{
+            font-family: 'ZiHunPixelBlock'; /* 给你自定义的字体起个名字 */
+            src: url('{BUGG_RESOURCE}/fonts/字魂像素积木体.ttf') format('ttf');
+            /* 建议提供多种格式以兼容不同浏览器，woff2 优先 */
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap; /* 此属性可避免字体加载期间文本不可见 */
+        }}
+
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'ZiHunPixelBlock', 'Courier New', monospace;
+        }}
+        
+        body {{
+            background: linear-gradient(135deg, #1a1f2d 0%, #0d1520 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            overflow: hidden;
+            position: relative;
+        }}
+        
+        .container {{
+            max-width: 800px;
+            width: 90%;
+            background: rgba(19, 26, 42, 0.85);
+            border: 4px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.5);
+            backdrop-filter: blur(10px);
+        }}
+        
+        .header {{
+            margin-bottom: 30px;
+        }}
+        
+        .logo {{
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+            position: relative;
+        }}
+        
+        .logo-inner {{
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #5c94fc 0%, #3a75d0 100%);
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform: rotate(45deg);
+            box-shadow: 0 0 20px rgba(92, 148, 252, 0.7);
+        }}
+        
+        .logo-inner::before {{
+            content: "";
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            border: 3px solid #fff;
+            border-radius: 8px;
+            transform: rotate(-45deg);
+        }}
+        
+        .logo-text {{
+            transform: rotate(-45deg);
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+            text-shadow: 3px 3px 0 #000;
+        }}
+        
+        h1 {{
+            font-size: 42px;
+            margin-bottom: 15px;
+            color: #5c94fc;
+            text-shadow: 3px 3px 0 #000;
+            letter-spacing: 2px;
+        }}
+        
+        .success-message {{
+            font-size: 24px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            color: #e0e0e0;
+            text-shadow: 1px 1px 0 #000;
+        }}
+        
+        .instruction {{
+            background: rgba(30, 40, 60, 0.7);
+            border: 3px solid #3a3a3a;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 30px 0;
+            font-size: 20px;
+            color: #a0c0ff;
+            text-shadow: 1px 1px 0 #000;
+        }}
+        
+        .pixel-button {{
+            display: inline-block;
+            background: linear-gradient(to bottom, #5c94fc, #3a75d0);
+            color: white;
+            font-size: 22px;
+            padding: 15px 40px;
+            margin: 20px 0;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            box-shadow: 0 5px 0 #2a55a0, 0 8px 10px rgba(0, 0, 0, 0.5);
+            transition: all 0.1s;
+            position: relative;
+            overflow: hidden;
+        }}
+        
+        .pixel-button:hover {{
+            background: linear-gradient(to bottom, #6ca4ff, #4a85e0);
+            transform: translateY(2px);
+            box-shadow: 0 3px 0 #2a55a0, 0 5px 8px rgba(0, 0, 0, 0.5);
+        }}
+        
+        .pixel-button:active {{
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #2a55a0, 0 2px 5px rgba(0, 0, 0, 0.5);
+        }}
+        
+        .pixel-button::after {{
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: all 0.5s;
+        }}
+        
+        .pixel-button:hover::after {{
+            left: 100%;
+        }}
+        
+        .footer {{
+            margin-top: 30px;
+            font-size: 16px;
+            color: #7f7f7f;
+            text-shadow: 1px 1px 0 #000;
+        }}
+        
+        .disclaimer {{
+            font-size: 12px;
+            margin-top: 10px;
+            color: #5a5a5a;
+            line-height: 1.4;
+        }}
+        
+        /* Minecraft 像素风格背景元素 */
+        .pixel {{
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(92, 148, 252, 0.2);
+            z-index: 1;
+        }}
+        
+        .pixel:nth-child(1) {{
+            top: 10%;
+            left: 20%;
+            animation: float 12s infinite linear;
+        }}
+        
+        .pixel:nth-child(2) {{
+            top: 20%;
+            right: 15%;
+            animation: float 15s infinite linear reverse;
+        }}
+        
+        .pixel:nth-child(3) {{
+            bottom: 30%;
+            left: 10%;
+            animation: float 18s infinite linear;
+        }}
+        
+        .pixel:nth-child(4) {{
+            bottom: 15%;
+            right: 20%;
+            animation: float 14s infinite linear reverse;
+        }}
+        
+        @keyframes float {{
+            0% {{ transform: translate(0, 0) rotate(0deg); }}
+            25% {{ transform: translate(50px, 50px) rotate(90deg); }}
+            50% {{ transform: translate(100px, 0) rotate(180deg); }}
+            75% {{ transform: translate(50px, -50px) rotate(270deg); }}
+            100% {{ transform: translate(0, 0) rotate(360deg); }}
+        }}
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {{
+            h1 {{ font-size: 32px; }}
+            .success-message {{ font-size: 20px; }}
+            .instruction {{ font-size: 18px; }}
+            .pixel-button {{ font-size: 18px; padding: 12px 30px; }}
+        }}
+        
+        @media (max-width: 480px) {{
+            .container {{ padding: 20px; }}
+            h1 {{ font-size: 28px; }}
+            .success-message {{ font-size: 18px; }}
+            .instruction {{ font-size: 16px; padding: 15px; }}
+        }}
+    </style>
+</head>
+<body>
+    <!-- 背景像素元素 -->
+    <div class="pixel"></div>
+    <div class="pixel"></div>
+    <div class="pixel"></div>
+    <div class="pixel"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-inner">
+                    <div class="logo-text">MC</div>
+                </div>
+            </div>
+            <h1>正版登录成功！</h1>
+        </div>
+        
+        <div class="success-message">
+            您的 Minecraft 正版账号已成功验证并登录
+        </div>
+        
+        <div class="instruction">
+            您现在可以安全地关闭此窗口并返回启动器<br>
+            愉快的游戏之旅即将开始！
+        </div>
+        
+        <button class="pixel-button" onclick="closeWindow()">关闭窗口</button>
+        
+        <div class="footer">
+            BuggCraft 启动器 © 2024
+        </div>
+        <div class="disclaimer">
+            本软件为开源项目，与任何游戏公司无隶属关系<br>
+            玩家需自行确保拥有正版游戏授权
+        </div>
+    </div>
+    
+    <script>
+        function closeWindow() {{
+            try {{
+                // 尝试关闭窗口
+                if (window.opener) {{
+                    // 如果窗口是由另一个窗口打开的，可以尝试关闭
+                    window.close();
+                }} else {{
+                    // 否则，尝试使用更可靠的方法
+                    window.open('', '_self', '').close();
+                }}
+            }} catch (e) {{
+                // 如果关闭失败，显示提示信息
+                const closeStatus = document.getElementById('closeStatus');
+                closeStatus.style.display = 'block';
+                closeStatus.innerHTML = `
+                    无法自动关闭窗口<br>
+                    请手动关闭此窗口返回启动器
+                `;
+                
+                // 更改按钮状态
+                const closeButton = document.querySelector('.pixel-button');
+                closeButton.textContent = '请手动关闭';
+                closeButton.style.background = '#ff5555';
+                closeButton.onclick = null;
+            }}
+        }}
+        
+        // 添加像素风格背景动画
+        document.addEventListener('DOMContentLoaded', function() {{
+            const container = document.querySelector('.container');
+            for (let i = 0; i < 20; i++) {{
+                const pixel = document.createElement('div');
+                pixel.classList.add('pixel');
+                pixel.style.left = Math.random() * 100 + '%';
+                pixel.style.top = Math.random() * 100 + '%';
+                pixel.style.width = Math.random() * 20 + 10 + 'px';
+                pixel.style.height = pixel.style.width;
+                pixel.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                pixel.style.animationDelay = Math.random() * 5 + 's';
+                pixel.style.opacity = Math.random() * 0.3 + 0.1;
+                document.body.appendChild(pixel);
+            }}
+        }});
+    </script>
+</body>
+</html>
                 """
                 self.wfile.write(response_content.encode('utf-8'))  # 关键修改：添加 .encode('utf-8')
                 # 将授权码设置到服务器对象中，以便主线程获取
