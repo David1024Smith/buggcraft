@@ -186,12 +186,14 @@ class LoginWaitDialog(QDialog):
 
     def start_login_process(self):
         """开始登录流程"""
+        self.auth.signals.failure.connect(self.set_messages)
         self.auth.signals.progress.connect(self.set_messages)
         self.reopen_signal.emit()
         QTimer.singleShot(500, self.auth.start_login)
         
     def reopen_browser(self):
         """重新打开浏览器"""
+        self.auth.signals.failure.disconnect(self.set_messages)
         self.auth.signals.progress.disconnect(self.set_messages)
         self.auth.cancel_authentication()
         self.start_login_process()
@@ -204,6 +206,7 @@ class LoginWaitDialog(QDialog):
     def close_reject(self):
         """关闭窗口"""
         self.set_messages("嘿！正在为您打开登录页面~")
+        self.auth.signals.failure.disconnect(self.set_messages)
         self.auth.signals.progress.disconnect(self.set_messages)
         self.cancel_signal.emit()
         self.reject()
