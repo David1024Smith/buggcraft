@@ -58,6 +58,19 @@ class LoginWaitDialog(QDialog):
         self.title_icon.setStyleSheet(f"background-color: transparent;")
         self.title_icon.setAlignment(Qt.AlignCenter)
 
+        # 添加Minecraft图标
+        self.minecraft_icon = QLabel()
+        minecraft_icon_path = os.path.abspath(os.path.join(self.resource_path, 'images', 'user', 'logo_minecraft.png'))
+        minecraft_pixmap = QPixmap(minecraft_icon_path)
+        if not minecraft_pixmap.isNull():
+            self.minecraft_icon.setPixmap(minecraft_pixmap.scaled(
+                13, 16,
+                Qt.IgnoreAspectRatio,
+                Qt.SmoothTransformation
+            ))
+        self.minecraft_icon.setStyleSheet("background-color: transparent;")
+        self.minecraft_icon.setAlignment(Qt.AlignCenter)
+
         self.title_label = QLabel("登录到 Minecraft")
         self.title_label.setStyleSheet("""
             color: rgba(220, 220, 220, 1);
@@ -66,6 +79,8 @@ class LoginWaitDialog(QDialog):
         """)
         title_layout.addWidget(self.title_icon)
         title_layout.addSpacing(15)
+        title_layout.addWidget(self.minecraft_icon)
+        title_layout.addSpacing(10)
         title_layout.addWidget(self.title_label)
         title_layout.addStretch()
         header_layout.addLayout(title_layout)
@@ -127,11 +142,17 @@ class LoginWaitDialog(QDialog):
         self.reopen_button.setFixedSize(100, 35)
         self.reopen_button.setStyleSheet("""
             QPushButton {
-                background-color: rgba(120, 89, 255, 1);
+                background-color: #7859FF;
                 color: #e0e0e0;
                 border: none;
                 font-size: 13px;
                 font-weight: medium;
+            }
+            QPushButton:hover {
+                background-color: #8A6FFF;
+            }
+            QPushButton:pressed {
+                background-color: #6A4FFF;
             }
         """)
         self.reopen_button.clicked.connect(self.reopen_browser)
@@ -142,11 +163,17 @@ class LoginWaitDialog(QDialog):
         self.cancel_button.setFixedSize(100, 35)
         self.cancel_button.setStyleSheet("""
             QPushButton {
-                background-color: rgba(47, 46, 95, 1);
+                background-color: #2F2E4B;
                 color: #e0e0e0;
                 border: none;
                 font-size: 13px;
                 font-weight: medium;
+            }
+            QPushButton:hover {
+                background-color: #3F3E5B;
+            }
+            QPushButton:pressed {
+                background-color: #1F1E3B;
             }
         """)
         self.cancel_button.clicked.connect(self.cancel_reject)
